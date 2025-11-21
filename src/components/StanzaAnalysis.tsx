@@ -127,14 +127,8 @@ export default function StanzaAnalysis({
     if (incompleteAnalysis) {
       console.log("✅ Reprise de l'analyse");
 
-      // Map selected words back to uniqueIds
-      const wordIds = new Set<string>();
-      incompleteAnalysis.selectedWords.forEach((cleanWord) => {
-        const wordData = allWords.find((w) => w.cleanWord === cleanWord);
-        if (wordData) {
-          wordIds.add(wordData.uniqueId);
-        }
-      });
+      // Restore uniqueIds directly from saved format (stanzaId-lineIndex-wordIndex)
+      const wordIds = new Set(incompleteAnalysis.selectedWords);
 
       setSelectedWordIds(wordIds);
       setAnalysis(incompleteAnalysis.analysis);
@@ -287,10 +281,8 @@ export default function StanzaAnalysis({
 
     setIsSaving(true);
     try {
-      const selectedWords = Array.from(selectedWordIds).map((id) => {
-        const wordData = allWords.find((w) => w.uniqueId === id);
-        return wordData?.cleanWord || "";
-      });
+      // Save uniqueIds directly (format: stanzaId-lineIndex-wordIndex)
+      const selectedWords = Array.from(selectedWordIds);
 
       // Update existing or create new
       if (currentAnalysisId) {
@@ -342,19 +334,16 @@ export default function StanzaAnalysis({
 
   const handleEditAnalysis = (index: number) => {
     const saved = savedAnalyses[index];
+    const dbAnalysis = dbAnalyses[index];
+
     setEditingIndex(index);
 
-    // Reconstruct word IDs from selected words
-    const wordIds = new Set<string>();
-    saved.selectedWords.forEach((cleanWord) => {
-      const wordData = allWords.find((w) => w.cleanWord === cleanWord);
-      if (wordData) {
-        wordIds.add(wordData.uniqueId);
-      }
-    });
+    // Restore uniqueIds directly
+    const wordIds = new Set(saved.selectedWords);
 
     setSelectedWordIds(wordIds);
     setAnalysis(saved.analysis);
+    setCurrentAnalysisId(dbAnalysis?.$id || null);
     setShowReviewDialog(false);
   };
 
@@ -363,15 +352,11 @@ export default function StanzaAnalysis({
 
     setIsSaving(true);
     try {
-      const selectedWords = Array.from(selectedWordIds).map((id) => {
-        const wordData = allWords.find((w) => w.uniqueId === id);
-        return wordData?.cleanWord || "";
-      });
+      const selectedWords = Array.from(selectedWordIds);
 
       // Update in DB if exists
-      const dbAnalysis = dbAnalyses[editingIndex];
-      if (dbAnalysis) {
-        await updateAnalysis(dbAnalysis.$id, {
+      if (currentAnalysisId) {
+        await updateAnalysis(currentAnalysisId, {
           selectedWords,
           analysis: analysis.trim(),
         });
@@ -409,6 +394,7 @@ export default function StanzaAnalysis({
     setEditingIndex(null);
     setSelectedWordIds(new Set());
     setAnalysis("");
+    setCurrentAnalysisId(null);
   };
 
   const handleSubmitToAI = async () => {
@@ -419,9 +405,17 @@ export default function StanzaAnalysis({
         .map((a) => a.analysis)
         .join("\n\n");
 
+      // Convert uniqueIds to clean words for AI
+      const cleanWords = Array.from(new Set(combinedWords))
+        .map((uniqueId) => {
+          const wordData = allWords.find((w) => w.uniqueId === uniqueId);
+          return wordData?.cleanWord || "";
+        })
+        .filter(Boolean);
+
       const answer: UserAnswer = {
         stanzaId: stanza.id,
-        selectedWords: combinedWords,
+        selectedWords: cleanWords,
         analysis: combinedAnalysis,
       };
 
@@ -432,6 +426,7 @@ export default function StanzaAnalysis({
         });
       }
 
+      setShowReviewDialog(false);
       onSubmit(answer);
     } catch (error) {
       console.error("Error submitting to AI:", error);
@@ -694,27 +689,6 @@ export default function StanzaAnalysis({
                       )}
                     </Button>
                   )}
-
-                  {/* Submit to AI */}
-                  {savedAnalyses.length > 0 && (
-                    <Button
-                      onClick={handleSubmitToAI}
-                      disabled={isLoading}
-                      className="w-full bg-gradient-to-r from-black to-gray-800 hover:from-gray-900 hover:to-gray-700 gap-2"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Évaluation en cours...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          Soumettre à l'IA
-                        </>
-                      )}
-                    </Button>
-                  )}
                 </div>
               </div>
             </div>
@@ -921,59 +895,90 @@ export default function StanzaAnalysis({
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[500px] pr-4">
+          <div className="max-h-[500px] overflow-y-auto scrollbar-hide pr-4">
             <div className="space-y-4">
-              {savedAnalyses.map((saved, index) => (
-                <div key={index} className="border rounded-lg p-4 bg-muted/20">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Analyse {index + 1}
-                      </p>
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {saved.selectedWords.map((word, i) => (
-                          <Badge
-                            key={i}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {word}
-                          </Badge>
-                        ))}
+              {savedAnalyses.map((saved, index) => {
+                const displayWords = saved.selectedWords.map((uniqueId) => {
+                  const wordData = allWords.find(
+                    (w) => w.uniqueId === uniqueId,
+                  );
+                  return wordData?.cleanWord || uniqueId;
+                });
+
+                return (
+                  <div
+                    key={index}
+                    className="border rounded-lg p-4 bg-muted/20"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Analyse {index + 1}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {displayWords.map((word, i) => (
+                            <Badge
+                              key={i}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {word}
+                            </Badge>
+                          ))}
+                        </div>
+                        <p className="text-sm">{saved.analysis}</p>
                       </div>
-                      <p className="text-sm">{saved.analysis}</p>
-                    </div>
-                    <div className="flex gap-1 ml-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditAnalysis(index)}
-                        className="h-7 w-7 p-0"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteAnalysis(index)}
-                        className="h-7 w-7 p-0 text-destructive"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="flex gap-1 ml-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditAnalysis(index)}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteAnalysis(index)}
+                          className="h-7 w-7 p-0 text-destructive"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </ScrollArea>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               variant="outline"
               onClick={() => setShowReviewDialog(false)}
             >
               Fermer
             </Button>
+            {savedAnalyses.length > 0 && (
+              <Button
+                onClick={handleSubmitToAI}
+                disabled={isLoading}
+                className="bg-gradient-to-r from-black to-gray-800 hover:from-gray-900 hover:to-gray-700 gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Évaluation...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Soumettre à l'IA
+                  </>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
