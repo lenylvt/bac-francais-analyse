@@ -1,4 +1,5 @@
 import type { Poem, UserAnswer, AIEvaluation } from "@/types";
+import { apiCache } from "@/utils/cache";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "x-ai/grok-4.1-fast:free";
@@ -17,6 +18,16 @@ export async function evaluateAnswer(
   poem: Poem,
   userAnswer: UserAnswer,
 ): Promise<AIEvaluation> {
+  // Generate cache key
+  const cacheKey = `eval_${poem.id}_${userAnswer.stanzaId}_${userAnswer.selectedWords.sort().join(",")}_${userAnswer.analysis.substring(0, 50)}`;
+
+  // Check cache first
+  const cached = apiCache.get<AIEvaluation>(cacheKey);
+  if (cached) {
+    console.log("Using cached evaluation");
+    return cached;
+  }
+
   const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
 
   if (!apiKey) {
@@ -25,29 +36,42 @@ export async function evaluateAnswer(
     );
   }
 
+  // Ensure stanzas array exists
+  if (!poem.stanzas || poem.stanzas.length === 0) {
+    throw new Error("Le poème ne contient pas de strophes");
+  }
+
   const stanza = poem.stanzas.find((s) => s.id === userAnswer.stanzaId);
-  const analysis = poem.linearAnalysis.find(
+  const analysis = poem.linearAnalysis?.find(
     (a) => a.stanzaId === userAnswer.stanzaId,
   );
 
-  if (!stanza || !analysis) {
-    throw new Error("Strophe ou analyse introuvable");
+  if (!stanza) {
+    throw new Error(`Strophe ${userAnswer.stanzaId} introuvable`);
+  }
+
+  if (!analysis) {
+    console.warn("Analyse linéaire non trouvée, évaluation basique");
   }
 
   const systemPrompt = `Tu es un professeur de français expert en analyse littéraire pour le baccalauréat.
 Tu évalues les réponses des élèves avec bienveillance mais rigueur.
 Tu notes sur 20 et tu donnes un feedback constructif.`;
 
+  const referenceAnalysis = analysis
+    ? `Analyse linéaire officielle de référence :
+${analysis.analysis}
+
+Mots-clés importants :
+${analysis.keywords.map((k) => `- ${k.word}: ${k.explanation}`).join("\n")}`
+    : `Analyse les éléments littéraires : figures de style, rythme, thèmes, vocabulaire.`;
+
   const userPrompt = `Poème : "${poem.title}" de ${poem.author}
 
 Strophe à analyser :
 ${stanza.lines.join("\n")}
 
-Analyse linéaire officielle de référence :
-${analysis.analysis}
-
-Mots-clés importants :
-${analysis.keywords.map((k) => `- ${k.word}: ${k.explanation}`).join("\n")}
+${referenceAnalysis}
 
 Réponse de l'élève :
 Mots sélectionnés : ${userAnswer.selectedWords.join(", ")}
@@ -64,9 +88,6 @@ Analyse : ${userAnswer.analysis}
 Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
 
   try {
-    console.log("🔑 API Key présente:", !!apiKey);
-    console.log("🔑 API Key début:", apiKey?.substring(0, 10) + "...");
-
     const response = await fetch(OPENROUTER_API_URL, {
       method: "POST",
       headers: {
@@ -84,11 +105,8 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
       } as OpenRouterRequest),
     });
 
-    console.log("📡 Status:", response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("❌ Erreur complète:", errorText);
       let errorData;
       try {
         errorData = JSON.parse(errorText);
@@ -96,7 +114,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
         errorData = { message: errorText };
       }
       throw new Error(
-        `Erreur API OpenRouter (${response.status}): ${errorData.error?.message || errorData.message || errorText}`,
+        `Erreur API (${response.status}): ${errorData.error?.message || errorData.message || "Erreur inconnue"}`,
       );
     }
 
@@ -122,6 +140,9 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
     ) {
       throw new Error("Format de réponse invalide");
     }
+
+    // Cache the result
+    apiCache.set(cacheKey, evaluation, 10 * 60 * 1000); // 10 minutes
 
     return evaluation;
   } catch (error) {

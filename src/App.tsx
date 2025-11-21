@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Auth from "@/components/Auth";
 import PoemSelector from "@/components/PoemSelector";
 import ModeSelector from "@/components/ModeSelector";
@@ -8,6 +8,9 @@ import type { Mode, UserAnswer, AIEvaluation } from "@/types";
 import { evaluateAnswer } from "@/services/ai";
 import { getCurrentUser, type AuthUser } from "@/lib/appwrite/auth";
 import { getPoemById, type PoemDocument } from "@/lib/appwrite/poems";
+import { usePreloadAPI } from "@/hooks/usePreloadAPI";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
 type Screen = "selector" | "mode" | "quiz" | "results";
 
@@ -27,6 +30,32 @@ function App() {
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Preload API connection for faster responses
+  usePreloadAPI();
+
+  // Memoize poem conversion to avoid recalculation (must be before conditional returns)
+  const poemForAnalysis = useMemo(() => {
+    if (!selectedPoem) return null;
+
+    const stanzas = selectedPoem.fullText
+      .split("\n\n")
+      .map((stanzaText, idx) => ({
+        id: idx + 1,
+        lines: stanzaText.split("\n").filter((line) => line.trim()),
+      }));
+
+    return {
+      id: selectedPoem.$id,
+      title: selectedPoem.title,
+      author: selectedPoem.author,
+      collection: "",
+      year: 0,
+      fullText: selectedPoem.fullText.split("\n"),
+      stanzas: stanzas,
+      linearAnalysis: selectedPoem.linearAnalysis || [],
+    };
+  }, [selectedPoem]);
 
   const checkAuth = async () => {
     try {
@@ -68,10 +97,20 @@ function App() {
   const handleAnswerSubmit = async (answer: UserAnswer) => {
     if (!selectedPoem) return;
 
+    // Optimistic UI: add answer immediately
+    const newAnswers = [...answers, answer];
+    setAnswers(newAnswers);
     setIsEvaluating(true);
 
     try {
-      // Convert PoemDocument to Poem format for AI evaluation
+      // Convert PoemDocument to Poem format with proper stanzas
+      const stanzas = selectedPoem.fullText
+        .split("\n\n")
+        .map((stanzaText, idx) => ({
+          id: idx + 1,
+          lines: stanzaText.split("\n").filter((line) => line.trim()),
+        }));
+
       const poemForAI = {
         id: selectedPoem.$id,
         title: selectedPoem.title,
@@ -79,28 +118,27 @@ function App() {
         collection: "",
         year: 0,
         fullText: selectedPoem.fullText.split("\n"),
-        stanzas: [], // Will be parsed from fullText if needed
+        stanzas: stanzas,
+        linearAnalysis: selectedPoem.linearAnalysis || [],
       };
 
       const evaluation = await evaluateAnswer(poemForAI, answer);
 
-      const newAnswers = [...answers, answer];
+      // Update evaluations
       const newEvaluations = [...evaluations, evaluation];
-
-      setAnswers(newAnswers);
       setEvaluations(newEvaluations);
 
-      // For now, go to results after first answer
+      // Calculate average and go to results
       const avgScore =
         newEvaluations.reduce((sum, e) => sum + e.score, 0) /
         newEvaluations.length;
       setAverageScore(avgScore);
       setScreen("results");
     } catch (error) {
+      // Rollback optimistic update on error
+      setAnswers(answers);
       console.error("Erreur lors de l'évaluation:", error);
-      alert(
-        "Une erreur est survenue lors de l'évaluation. Vérifiez votre clé API OpenRouter dans le fichier .env",
-      );
+      alert("Erreur lors de l'évaluation. Vérifiez votre clé API OpenRouter.");
     } finally {
       setIsEvaluating(false);
     }
@@ -164,49 +202,49 @@ function App() {
     );
   }
 
-  if (screen === "quiz" && selectedPoem && user) {
-    // Convert PoemDocument to Poem format for StanzaAnalysis
-    const poemForAnalysis = {
-      id: selectedPoem.$id,
-      title: selectedPoem.title,
-      author: selectedPoem.author,
-      collection: "",
-      year: 0,
-      fullText: selectedPoem.fullText.split("\n"),
-      stanzas: selectedPoem.fullText.split("\n\n").map((stanzaText, idx) => ({
-        id: idx + 1,
-        lines: stanzaText.split("\n").filter((line) => line.trim()),
-      })),
-    };
-
+  if (screen === "quiz" && poemForAnalysis && user) {
     return (
-      <StanzaAnalysis
-        poem={poemForAnalysis}
-        stanzaIndex={0}
-        totalStanzas={1}
-        mode={mode}
-        userId={user.$id}
-        onSubmit={handleAnswerSubmit}
-        onBack={handleBackFromQuiz}
-        isLoading={isEvaluating}
-      />
+      <>
+        <StanzaAnalysis
+          poem={poemForAnalysis}
+          stanzaIndex={0}
+          totalStanzas={poemForAnalysis.stanzas.length}
+          mode={mode}
+          userId={user.$id}
+          onSubmit={handleAnswerSubmit}
+          onBack={handleBackFromQuiz}
+          isLoading={isEvaluating}
+        />
+        {isEvaluating && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
+              <div className="flex flex-col items-center space-y-4">
+                <Loader2 className="w-12 h-12 animate-spin text-black" />
+                <div className="space-y-2 text-center">
+                  <h3 className="font-semibold text-lg">
+                    Évaluation en cours...
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    L'IA analyse votre réponse
+                  </p>
+                </div>
+                <div className="w-full space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-5/6" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
-  if (screen === "results" && selectedPoem) {
-    const poemForResults = {
-      id: selectedPoem.$id,
-      title: selectedPoem.title,
-      author: selectedPoem.author,
-      collection: "",
-      year: 0,
-      fullText: selectedPoem.fullText.split("\n"),
-      stanzas: [],
-    };
-
+  if (screen === "results" && poemForAnalysis) {
     return (
       <ResultsView
-        poem={poemForResults}
+        poem={poemForAnalysis}
         evaluations={evaluations}
         answers={answers}
         averageScore={averageScore}

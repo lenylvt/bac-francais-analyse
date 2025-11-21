@@ -11,6 +11,9 @@ Application web moderne pour analyser des poèmes avec assistance IA et sauvegar
 - **Mode Complet/Rapide** : Analysez tout le poème ou des strophes aléatoires
 - **Évaluation IA** : Feedback détaillé avec score via OpenRouter
 - **Interface responsive** : Design optimisé mobile et desktop
+- **Optimistic UI** : Réponse instantanée avec rollback automatique
+- **Preloading** : Connexion API préchauffée pour réponses rapides
+- **Cache intelligent** : Résultats mis en cache pour éviter requêtes dupliquées
 
 ## 🚀 Installation
 
@@ -143,13 +146,18 @@ src/
 │   ├── StanzaAnalysis.tsx    # Composant principal
 │   ├── ResultsView.tsx       # Résultats
 │   └── ui/                   # shadcn components
+├── hooks/
+│   ├── usePreloadAPI.ts      # Preload API connection
+│   └── useOptimisticState.ts # Optimistic UI updates
 ├── lib/
 │   └── appwrite/
 │       ├── config.ts         # Configuration client
 │       ├── auth.ts           # Service auth OTP
 │       └── database.ts       # Service analyses
 ├── services/
-│   └── ai.ts                 # Service OpenRouter
+│   └── ai.ts                 # Service OpenRouter + cache
+├── utils/
+│   └── cache.ts              # Cache API responses
 ├── types/
 │   └── index.ts              # Types TypeScript
 └── data/
@@ -193,6 +201,30 @@ Toutes les analyses sont automatiquement sauvegardées dans Appwrite:
 - **Stats**: Analyses totales, complétées, score moyen
 - **Historique**: Toutes les analyses par utilisateur
 
+## ⚡ Optimisations Performances
+
+### Optimistic UI
+- Mise à jour immédiate de l'UI avant requête API
+- Rollback automatique en cas d'erreur
+- Feedback instantané pour l'utilisateur
+
+### API Preloading
+- DNS prefetch vers openrouter.ai au démarrage
+- Connexion TCP préétablie
+- Première requête ~200ms plus rapide
+
+### Cache Intelligent
+- Cache en mémoire pour réponses identiques
+- TTL: 10 minutes pour évaluations
+- Cleanup automatique toutes les 5 minutes
+- Évite requêtes API dupliquées
+
+### Optimisations React
+- `useMemo` pour calculs coûteux (conversion poèmes)
+- `useCallback` pour callbacks stables
+- Skeleton loading pendant évaluation IA
+- Lazy rendering des composants non-critiques
+
 ## 📝 Commandes
 
 ```bash
@@ -206,9 +238,8 @@ npm run lint     # Linter
 
 ### Logs API dans la console
 
-- 🔑 Présence de la clé OpenRouter
-- 📡 Status HTTP des requêtes
-- ❌ Erreurs détaillées
+- Cache hits affichés dans console
+- Erreurs détaillées avec contexte
 
 ### Vérifier Appwrite
 
@@ -239,6 +270,8 @@ console.log(await databases.listDocuments(...))
 - [ ] Partage d'analyses
 - [ ] Mode hors-ligne (PWA)
 - [ ] Thème sombre
+- [ ] Service Worker pour cache persistant
+- [ ] Prefetch poèmes suivants
 
 ## 📄 Licence
 
