@@ -98,7 +98,7 @@ export async function scrapePoem(url: string): Promise<ScrapeResult> {
             text_content: {
               type: "string",
               description:
-                "The entire original text, word for word, preserving line breaks and formatting",
+                "The entire original text, word for word, preserving line breaks and formatting. Please ensure line returns are preserved and formatted correctly for Strophe.",
             },
             thematic_analysis: {
               type: "string",

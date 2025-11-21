@@ -419,7 +419,7 @@ export default function PoemSelector({
           <ScrollArea className="h-[calc(85vh-100px)] pr-4">
             <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
               <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                {selectedAnalysis?.analysis || ""}
+                {selectedAnalysis?.analysis.replace(/\\n/g, "\n") || ""}
               </ReactMarkdown>
             </div>
           </ScrollArea>
