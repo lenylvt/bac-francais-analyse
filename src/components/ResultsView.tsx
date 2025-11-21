@@ -56,40 +56,36 @@ export default function ResultsView({
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="p-4 md:p-6">
-          <div className="text-center mb-4">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-black mb-3">
-              <Trophy className="w-6 h-6 text-white" />
+      {/* Header compact sticky */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b shadow-sm">
+        <div className="px-4 py-3">
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-sm font-semibold truncate">{poem.title}</h1>
+              <p className="text-xs text-muted-foreground truncate">
+                {poem.author}
+              </p>
             </div>
-            <h1 className="text-2xl font-bold mb-1">Résultats</h1>
-            <p className="text-sm text-muted-foreground">{poem.title}</p>
-            <p className="text-xs text-muted-foreground">{poem.author}</p>
-          </div>
-
-          <div className="max-w-md mx-auto">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <div
-                className={`text-5xl font-bold ${getScoreColor(averageScore)}`}
-              >
-                {averageScore.toFixed(1)}
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="text-right">
+                <div
+                  className={`text-2xl font-bold ${getScoreColor(averageScore)}`}
+                >
+                  {averageScore.toFixed(1)}
+                </div>
+                <div className="text-xs text-muted-foreground">/ 20</div>
               </div>
-              <div className="text-left">
-                <div className="text-sm text-muted-foreground">/ 20</div>
-                <Badge {...getScoreBadge(averageScore)}>
-                  {getScoreBadge(averageScore).label}
-                </Badge>
-              </div>
+              <Badge {...getScoreBadge(averageScore)} className="text-xs">
+                {getScoreBadge(averageScore).label}
+              </Badge>
             </div>
-            <Progress value={(averageScore / 20) * 100} className="h-2" />
           </div>
         </div>
       </div>
 
-      {/* Contenu */}
-      <div className="flex-1 overflow-y-auto p-4 pb-24">
-        <div className="max-w-2xl mx-auto space-y-3">
+      {/* Contenu scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto p-4 space-y-3">
           {evaluations.map((evaluation, index) => {
             const stanza = poem.stanzas.find(
               (s) => s.id === answers[index].stanzaId,
@@ -224,9 +220,9 @@ export default function ResultsView({
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="sticky bottom-0 z-10 bg-background border-t p-4">
-        <div className="max-w-2xl mx-auto flex gap-3">
+      {/* Footer fixe */}
+      <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm border-t shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex gap-3">
           <Button onClick={onHome} variant="outline" className="flex-1 h-11">
             <Home className="w-4 h-4 mr-2" />
             Accueil
