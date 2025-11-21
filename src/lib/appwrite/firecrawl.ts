@@ -1,7 +1,7 @@
 import { createPoem } from "./poems";
 
 const FIRECRAWL_API_URL = "https://api.firecrawl.dev/v1/scrape";
-const FIRECRAWL_API_KEY = "fc-30b220a1ecac4609a71a83f2c25df551";
+const FIRECRAWL_API_KEY = import.meta.env.VITE_FIRECRAWL_API_KEY;
 
 export interface ScrapeResult {
   author: string;
@@ -50,12 +50,15 @@ async function validatePageContent(url: string): Promise<void> {
   const content = result.data?.markdown || "";
 
   const hasValidMarkers =
-    content.includes("Texte étudié") || content.includes("Poème étudié") || content.includes("Poème analysé") || content.includes("Texte analysé") || content.includes("Extrait analysé") || content.includes("Extrait étudié");
+    content.includes("Texte étudié") ||
+    content.includes("Poème étudié") ||
+    content.includes("Poème analysé") ||
+    content.includes("Texte analysé") ||
+    content.includes("Extrait analysé") ||
+    content.includes("Extrait étudié");
 
   if (!hasValidMarkers) {
-    throw new Error(
-      "Cette page ne contient pas d'analyse littéraire",
-    );
+    throw new Error("Cette page ne contient pas d'analyse littéraire");
   }
 }
 
@@ -98,7 +101,7 @@ export async function scrapePoem(url: string): Promise<ScrapeResult> {
             text_content: {
               type: "string",
               description:
-                "The entire original text, word for word, preserving line breaks and formatting. Please ensure line returns are preserved and formatted correctly for Strophe.",
+                "The entire original text, word for word. IMPORTANT: Use \\n (backslash-n) ONLY to separate stanzas/strophes, NOT individual verses. Keep verses on the same line within each stanza. Only use \\n between different stanzas.",
             },
             thematic_analysis: {
               type: "string",
@@ -150,7 +153,7 @@ export async function scrapePoem(url: string): Promise<ScrapeResult> {
 If this IS a valid literary analysis page, set "isNotGood" to false and extract:
 
 **Essential Elements:**
-- Complete original text with exact formatting and line breaks
+- Complete original text with exact formatting and line breaks: The entire original text, word for word. IMPORTANT: Use \\n (backslash-n) for line breaks. Each verse or line must end with \\n. Do NOT use actual line breaks, use the literal characters backslash-n.
 - Full author name and precise title of the work
 
 **Core Analysis (extract every detail available):**
@@ -243,7 +246,7 @@ Extract EVERY paragraph, explanation, commentary, and analytical note present on
   return {
     author: data.author,
     title: data.text_name,
-    fullText: data.text_content,
+    fullText: data.text_content.split("\\n").join("\n"),
     analyses: fullAnalysis || "Aucune analyse disponible",
   };
 }

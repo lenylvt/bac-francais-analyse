@@ -488,8 +488,8 @@ export default function StanzaAnalysis({
                     transition-all duration-150 cursor-pointer select-none
                     ${
                       isSelected(wordData.uniqueId)
-                        ? "bg-black text-white scale-[1.02]"
-                        : "hover:bg-gray-100"
+                        ? "bg-black dark:bg-white text-white dark:text-black scale-[1.02]"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-800"
                     }
                   `}
                 >
