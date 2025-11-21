@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "setup-db": "node scripts/setup-appwrite.js",
-    "test-db": "node scripts/test-db.js"
+    "test-db": "node scripts/test-db.js",
+    "setup-poems-db": "node scripts/setup-poems-db.cjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -22,6 +23,7 @@
     "appwrite": "^21.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
     "lucide-react": "^0.554.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

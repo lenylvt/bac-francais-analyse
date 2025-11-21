@@ -10,9 +10,10 @@ import {
   LogOut,
   Sparkles,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import { logout, getCurrentUser } from "@/lib/appwrite/auth";
-import { getUserStats } from "@/lib/appwrite/database";
+import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
 
 interface PoemSelectorProps {
   poems: Poem[];
@@ -26,7 +27,11 @@ export default function PoemSelector({ poems, onSelect }: PoemSelectorProps) {
     averageScore: 0,
   });
   const [userEmail, setUserEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [incompletePoems, setIncompletePoems] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     loadUserData();
@@ -37,8 +42,19 @@ export default function PoemSelector({ poems, onSelect }: PoemSelectorProps) {
       const user = await getCurrentUser();
       if (user) {
         setUserEmail(user.email);
+        setUserId(user.$id);
         const userStats = await getUserStats(user.$id);
         setStats(userStats);
+
+        // Check for incomplete analyses for each poem
+        const incomplete = new Set<string>();
+        for (const poem of poems) {
+          const analyses = await getIncompleteAnalyses(user.$id, poem.id);
+          if (analyses.length > 0) {
+            incomplete.add(poem.id);
+          }
+        }
+        setIncompletePoems(incomplete);
       }
     } catch (error) {
       console.error("Error loading user data:", error);
@@ -124,60 +140,76 @@ export default function PoemSelector({ poems, onSelect }: PoemSelectorProps) {
 
           {/* Poems List */}
           <div className="space-y-3">
-            {poems.map((poem) => (
-              <Card
-                key={poem.id}
-                className="group cursor-pointer border-2 hover:border-black hover:shadow-md transition-all duration-200"
-                onClick={() => onSelect(poem.id)}
-              >
-                <CardContent className="p-4 md:p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-black group-hover:text-white transition-colors">
-                          <BookOpen className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold mb-1 group-hover:text-black transition-colors">
-                            {poem.title}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5" />
-                              {poem.author}
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5" />
-                              {poem.collection} • {poem.year}
-                            </span>
+            {poems.map((poem) => {
+              const hasIncomplete = incompletePoems.has(poem.id);
+              return (
+                <Card
+                  key={poem.id}
+                  className={`group cursor-pointer border-2 hover:border-black hover:shadow-md transition-all duration-200 ${
+                    hasIncomplete ? "border-amber-500/50 bg-amber-50/30" : ""
+                  }`}
+                  onClick={() => onSelect(poem.id)}
+                >
+                  <CardContent className="p-4 md:p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-black group-hover:text-white transition-colors">
+                            <BookOpen className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-lg font-bold group-hover:text-black transition-colors">
+                                {poem.title}
+                              </h3>
+                              {hasIncomplete && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-700 border-amber-500/30 flex items-center gap-1"
+                                >
+                                  <Clock className="w-3 h-3" />
+                                  En cours
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5" />
+                                {poem.author}
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5" />
+                                {poem.collection} • {poem.year}
+                              </span>
+                            </div>
                           </div>
                         </div>
+
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge variant="secondary" className="text-xs">
+                            {poem.stanzas.length} strophes
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {poem.fullText.filter((line) => line.trim()).length}{" "}
+                            vers
+                          </Badge>
+                        </div>
+
+                        <div className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 line-clamp-2">
+                          {poem.stanzas[0].lines[0]}
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge variant="secondary" className="text-xs">
-                          {poem.stanzas.length} strophes
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {poem.fullText.filter((line) => line.trim()).length}{" "}
-                          vers
-                        </Badge>
-                      </div>
-
-                      <div className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 line-clamp-2">
-                        {poem.stanzas[0].lines[0]}
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-black group-hover:text-white flex items-center justify-center transition-colors">
+                          <ChevronRight className="w-4 h-4" />
+                        </div>
                       </div>
                     </div>
-
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-black group-hover:text-white flex items-center justify-center transition-colors">
-                        <ChevronRight className="w-4 h-4" />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </div>
