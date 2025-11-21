@@ -4,15 +4,17 @@ import PoemSelector from "@/components/PoemSelector";
 import ModeSelector from "@/components/ModeSelector";
 import StanzaAnalysis from "@/components/StanzaAnalysis";
 import ResultsView from "@/components/ResultsView";
+import Progress from "@/components/Progress";
 import type { Mode, UserAnswer, AIEvaluation } from "@/types";
 import { evaluateAnswer } from "@/services/ai";
 import { getCurrentUser, type AuthUser } from "@/lib/appwrite/auth";
 import { getPoemById, type PoemDocument } from "@/lib/appwrite/poems";
+import { createResult, type ResultDocument } from "@/lib/appwrite/results";
 import { usePreloadAPI } from "@/hooks/usePreloadAPI";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 
-type Screen = "selector" | "mode" | "quiz" | "results";
+type Screen = "selector" | "mode" | "quiz" | "results" | "progress";
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -26,6 +28,9 @@ function App() {
   const [evaluations, setEvaluations] = useState<AIEvaluation[]>([]);
   const [averageScore, setAverageScore] = useState(0);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [viewingResult, setViewingResult] = useState<ResultDocument | null>(
+    null,
+  );
 
   useEffect(() => {
     checkAuth();
@@ -133,6 +138,24 @@ function App() {
         newEvaluations.reduce((sum, e) => sum + e.score, 0) /
         newEvaluations.length;
       setAverageScore(avgScore);
+
+      // Save result to database
+      try {
+        await createResult({
+          userId: user.$id,
+          poemId: selectedPoem.$id,
+          poemTitle: selectedPoem.title,
+          poemAuthor: selectedPoem.author,
+          mode: mode,
+          answers: newAnswers,
+          evaluations: newEvaluations,
+          averageScore: avgScore,
+          totalStanzas: stanzas.length,
+        });
+      } catch (error) {
+        console.error("Error saving result:", error);
+      }
+
       setScreen("results");
     } catch (error) {
       // Rollback optimistic update on error
@@ -171,6 +194,20 @@ function App() {
     setCurrentStanzaIndex(0);
     setAnswers([]);
     setEvaluations([]);
+    setViewingResult(null);
+  };
+
+  const handleProgress = () => {
+    setScreen("progress");
+  };
+
+  const handleViewResult = (result: ResultDocument) => {
+    setViewingResult(result);
+    setScreen("results");
+  };
+
+  const handleBackFromProgress = () => {
+    setScreen("selector");
   };
 
   if (isCheckingAuth) {
@@ -189,7 +226,19 @@ function App() {
   }
 
   if (screen === "selector") {
-    return <PoemSelector onSelect={handlePoemSelect} />;
+    return (
+      <PoemSelector onSelect={handlePoemSelect} onProgress={handleProgress} />
+    );
+  }
+
+  if (screen === "progress" && user) {
+    return (
+      <Progress
+        userId={user.$id}
+        onBack={handleBackFromProgress}
+        onViewResult={handleViewResult}
+      />
+    );
   }
 
   if (screen === "mode" && selectedPoem) {
@@ -241,17 +290,43 @@ function App() {
     );
   }
 
-  if (screen === "results" && poemForAnalysis) {
-    return (
-      <ResultsView
-        poem={poemForAnalysis}
-        evaluations={evaluations}
-        answers={answers}
-        averageScore={averageScore}
-        onRestart={handleRestart}
-        onHome={handleHome}
-      />
-    );
+  if (screen === "results") {
+    if (viewingResult) {
+      // Viewing a saved result
+      const resultPoem = {
+        id: viewingResult.poemId,
+        title: viewingResult.poemTitle,
+        author: viewingResult.poemAuthor,
+        collection: "",
+        year: 0,
+        fullText: [],
+        stanzas: [],
+        linearAnalysis: [],
+      };
+
+      return (
+        <ResultsView
+          poem={resultPoem}
+          evaluations={viewingResult.evaluations}
+          answers={viewingResult.answers}
+          averageScore={viewingResult.averageScore}
+          onRestart={handleRestart}
+          onHome={handleHome}
+        />
+      );
+    } else if (poemForAnalysis) {
+      // Viewing current result
+      return (
+        <ResultsView
+          poem={poemForAnalysis}
+          evaluations={evaluations}
+          answers={answers}
+          averageScore={averageScore}
+          onRestart={handleRestart}
+          onHome={handleHome}
+        />
+      );
+    }
   }
 
   return null;

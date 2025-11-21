@@ -14,6 +14,7 @@ import {
   Clock,
   Search,
   X,
+  BarChart3,
 } from "lucide-react";
 import { logout, getCurrentUser } from "@/lib/appwrite/auth";
 import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
@@ -21,9 +22,13 @@ import { getAllPoems, type PoemDocument } from "@/lib/appwrite/poems";
 
 interface PoemSelectorProps {
   onSelect: (poemId: string) => void;
+  onProgress: () => void;
 }
 
-export default function PoemSelector({ onSelect }: PoemSelectorProps) {
+export default function PoemSelector({
+  onSelect,
+  onProgress,
+}: PoemSelectorProps) {
   const [stats, setStats] = useState({
     totalAnalyses: 0,
     completedAnalyses: 0,
@@ -134,6 +139,15 @@ export default function PoemSelector({ onSelect }: PoemSelectorProps) {
               </div>
             )}
             <div className="h-4 w-px bg-border hidden md:block" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onProgress}
+              className="gap-2 h-8 text-xs"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Suivi</span>
+            </Button>
             <Button variant="ghost" size="sm" className="gap-2 h-8 text-xs">
               <User className="w-3.5 h-3.5" />
               <span className="hidden md:inline max-w-[150px] truncate">

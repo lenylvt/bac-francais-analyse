@@ -29,6 +29,8 @@ export const appwriteConfig = {
   databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID || "",
   analysesCollectionId:
     import.meta.env.VITE_APPWRITE_ANALYSES_COLLECTION_ID || "",
+  resultsCollectionId:
+    import.meta.env.VITE_APPWRITE_RESULTS_COLLECTION_ID || "",
 };
 
 export { client };
