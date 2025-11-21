@@ -181,20 +181,20 @@ export default function StanzaAnalysis({
     [isResizing],
   );
 
-  const handleMouseUp = useCallback(() => {
+  const handleResizeMouseUp = useCallback(() => {
     setIsResizing(false);
   }, []);
 
   useEffect(() => {
     if (isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("mouseup", handleResizeMouseUp);
       return () => {
         document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener("mouseup", handleResizeMouseUp);
       };
     }
-  }, [isResizing, handleMouseMove, handleMouseUp]);
+  }, [isResizing, handleMouseMove, handleResizeMouseUp]);
 
   // Parse all words with unique IDs
   const allWords: WordData[] = [];
