@@ -18,6 +18,7 @@ import {
   Eye,
   Sparkles,
   AlertCircle,
+  GripVertical,
 } from "lucide-react";
 import type { Poem, UserAnswer } from "@/types";
 import {
@@ -85,6 +86,8 @@ export default function StanzaAnalysis({
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(
     null,
   );
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const [isResizing, setIsResizing] = useState(false);
 
   const isComplete = mode === "complete";
 
@@ -161,6 +164,37 @@ export default function StanzaAnalysis({
   useEffect(() => {
     loadAnalyses();
   }, [loadAnalyses]);
+
+  // Handle sidebar resize
+  const handleMouseDown = useCallback(() => {
+    setIsResizing(true);
+  }, []);
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth >= 280 && newWidth <= 600) {
+        setSidebarWidth(newWidth);
+      }
+    },
+    [isResizing],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
   // Parse all words with unique IDs
   const allWords: WordData[] = [];
@@ -500,6 +534,22 @@ export default function StanzaAnalysis({
               </p>
             </div>
           </div>
+
+          {/* Review button in header */}
+          {savedAnalyses.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowReviewDialog(true)}
+              className="h-8 gap-2"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                Revoir ({savedAnalyses.length})
+              </span>
+              <span className="sm:hidden">{savedAnalyses.length}</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -508,16 +558,11 @@ export default function StanzaAnalysis({
         <div className="h-full max-w-[1920px] mx-auto">
           {/* Desktop: 2 columns */}
           <div className="hidden md:flex h-full">
-            {/* Left: Text (65%) */}
-            <div className="flex-[0_0_65%] border-r">
+            {/* Left: Text (flexible) */}
+            <div className="flex-1 border-r">
               <ScrollArea className="h-full">
                 <div className="p-8">
                   <div className="max-w-3xl">
-                    <h2 className="text-lg font-bold mb-6">
-                      {isComplete
-                        ? "Poème complet"
-                        : `Strophe ${stanzaIndex + 1}`}
-                    </h2>
                     <div className="text-base leading-relaxed">
                       {stanzasToShow.map((s, idx) => renderStanza(s, idx + 1))}
                     </div>
@@ -526,8 +571,21 @@ export default function StanzaAnalysis({
               </ScrollArea>
             </div>
 
-            {/* Right: Sidebar (35%) */}
-            <div className="flex-[0_0_35%] flex flex-col bg-muted/20">
+            {/* Resize handle */}
+            <div
+              className="w-1 bg-border hover:bg-primary cursor-col-resize relative group"
+              onMouseDown={handleMouseDown}
+            >
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <GripVertical className="w-4 h-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            {/* Right: Sidebar (resizable) */}
+            <div
+              className="flex flex-col bg-muted/20"
+              style={{ width: `${sidebarWidth}px` }}
+            >
               <div className="flex-1 flex flex-col p-6 gap-4 min-h-0">
                 {/* Selection badge */}
                 {selectedWordIds.size > 0 && (
@@ -585,53 +643,55 @@ export default function StanzaAnalysis({
 
                 {/* Buttons section - fixed at bottom */}
                 <div className="flex-shrink-0 space-y-3">
-                  {/* Save button */}
-                  <Button
-                    onClick={
-                      editingIndex !== null
-                        ? handleSaveEdit
-                        : handleSaveAnalysis
-                    }
-                    disabled={!canSave || isSaving}
-                    className="w-full bg-black hover:bg-black/90 gap-2"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Sauvegarde...
-                      </>
-                    ) : editingIndex !== null ? (
-                      <>
-                        <Check className="w-4 h-4" />
-                        Sauvegarder modification
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4" />
-                        Enregistrer l'analyse
-                      </>
-                    )}
-                  </Button>
-
-                  {editingIndex !== null && (
+                  {/* Save/Cancel buttons - side by side during edit */}
+                  {editingIndex !== null ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        onClick={handleCancelEdit}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        onClick={handleSaveEdit}
+                        disabled={!canSave || isSaving}
+                        className="w-full bg-black hover:bg-black/90 gap-2"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="hidden lg:inline">
+                              Sauvegarde...
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span className="hidden lg:inline">
+                              Sauvegarder
+                            </span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
                     <Button
-                      onClick={handleCancelEdit}
-                      variant="outline"
-                      className="w-full"
+                      onClick={handleSaveAnalysis}
+                      disabled={!canSave || isSaving}
+                      className="w-full bg-black hover:bg-black/90 gap-2"
                     >
-                      Annuler
-                    </Button>
-                  )}
-
-                  {/* Saved analyses - now a full review button */}
-                  {savedAnalyses.length > 0 && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowReviewDialog(true)}
-                      className="w-full gap-2"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Revoir les analyses ({savedAnalyses.length})
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Sauvegarde...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4" />
+                          Enregistrer l'analyse
+                        </>
+                      )}
                     </Button>
                   )}
 
@@ -664,9 +724,6 @@ export default function StanzaAnalysis({
           <div className="md:hidden h-full flex flex-col">
             <ScrollArea className="flex-1">
               <div className="p-6">
-                <h2 className="text-lg font-bold mb-4">
-                  {isComplete ? "Poème complet" : `Strophe ${stanzaIndex + 1}`}
-                </h2>
                 <div className="text-base leading-relaxed mb-6">
                   {stanzasToShow.map((s, idx) => renderStanza(s, idx + 1))}
                 </div>
