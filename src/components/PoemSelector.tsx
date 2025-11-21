@@ -16,7 +16,11 @@ import { logout, getCurrentUser } from "@/lib/appwrite/auth";
 import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
 import { getAllPoems, type PoemDocument } from "@/lib/appwrite/poems";
 
-export default function PoemSelector() {
+interface PoemSelectorProps {
+  onSelect: (poemId: string) => void;
+}
+
+export default function PoemSelector({ onSelect }: PoemSelectorProps) {
   const [stats, setStats] = useState({
     totalAnalyses: 0,
     completedAnalyses: 0,
@@ -164,6 +168,7 @@ export default function PoemSelector() {
                   className={`group cursor-pointer border-2 hover:border-black hover:shadow-md transition-all duration-200 ${
                     hasIncomplete ? "border-amber-500/50 bg-amber-50/30" : ""
                   }`}
+                  onClick={() => onSelect(dbPoem.$id)}
                 >
                   <CardContent className="p-4 md:p-5">
                     <div className="flex items-start justify-between gap-4">
