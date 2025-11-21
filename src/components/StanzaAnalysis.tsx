@@ -25,7 +25,7 @@ import {
   createAnalysis,
   updateAnalysis,
   getUserAnalysesForPoem,
-  getIncompleteAnalysis,
+  getIncompleteAnalyses,
   type SavedAnalysisDocument,
 } from "@/lib/appwrite/database";
 
@@ -80,8 +80,9 @@ export default function StanzaAnalysis({
   const [dbAnalyses, setDbAnalyses] = useState<SavedAnalysisDocument[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [hasLoadedIncomplete, setHasLoadedIncomplete] = useState(false);
-  const [incompleteAnalysis, setIncompleteAnalysis] =
-    useState<SavedAnalysisDocument | null>(null);
+  const [incompleteAnalyses, setIncompleteAnalyses] = useState<
+    SavedAnalysisDocument[]
+  >([]);
   const [showResumeDialog, setShowResumeDialog] = useState(false);
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(
     null,
@@ -101,38 +102,41 @@ export default function StanzaAnalysis({
     }
   }, [userId, poem.id]);
 
-  // Load incomplete analysis on mount
+  // Load incomplete analyses on mount
   useEffect(() => {
-    const loadIncompleteAnalysis = async () => {
+    const loadIncompleteAnalyses = async () => {
       if (hasLoadedIncomplete) return;
 
       try {
-        const incomplete = await getIncompleteAnalysis(userId, poem.id);
-        if (incomplete) {
-          console.log("📋 Analyse incomplète trouvée:", incomplete);
-          setIncompleteAnalysis(incomplete);
+        const incompletes = await getIncompleteAnalyses(userId, poem.id);
+        if (incompletes.length > 0) {
+          console.log("📋 Analyses incomplètes trouvées:", incompletes.length);
+          setIncompleteAnalyses(incompletes);
           setShowResumeDialog(true);
           setHasLoadedIncomplete(true);
         }
       } catch (error) {
-        console.error("Error loading incomplete analysis:", error);
+        console.error("Error loading incomplete analyses:", error);
       }
     };
 
-    loadIncompleteAnalysis();
+    loadIncompleteAnalyses();
   }, [userId, poem.id, hasLoadedIncomplete]);
 
-  // Handle resume choice
+  // Handle resume choice - restore all incomplete analyses
   const handleResumeAnalysis = () => {
-    if (incompleteAnalysis) {
-      console.log("✅ Reprise de l'analyse");
+    if (incompleteAnalyses.length > 0) {
+      console.log("✅ Reprise des analyses:", incompleteAnalyses.length);
 
-      // Restore uniqueIds directly from saved format (stanzaId-lineIndex-wordIndex)
-      const wordIds = new Set(incompleteAnalysis.selectedWords);
+      // Restore all analyses to savedAnalyses state
+      const restored = incompleteAnalyses.map((incomplete) => ({
+        selectedWords: incomplete.selectedWords,
+        analysis: incomplete.analysis,
+        timestamp: new Date(incomplete.$createdAt).getTime(),
+      }));
 
-      setSelectedWordIds(wordIds);
-      setAnalysis(incompleteAnalysis.analysis);
-      setCurrentAnalysisId(incompleteAnalysis.$id);
+      setSavedAnalyses(restored);
+      setDbAnalyses(incompleteAnalyses);
       setShowResumeDialog(false);
       setHasLoadedIncomplete(true);
     }
@@ -141,17 +145,19 @@ export default function StanzaAnalysis({
   const handleStartNew = async () => {
     console.log("🆕 Nouvelle analyse");
 
-    // Mark the incomplete analysis as completed or delete it
-    if (incompleteAnalysis) {
+    // Mark all incomplete analyses as completed
+    if (incompleteAnalyses.length > 0) {
       try {
-        await updateAnalysis(incompleteAnalysis.$id, { completed: true });
+        for (const incomplete of incompleteAnalyses) {
+          await updateAnalysis(incomplete.$id, { completed: true });
+        }
       } catch (error) {
-        console.error("Error marking analysis as completed:", error);
+        console.error("Error marking analyses as completed:", error);
       }
     }
 
     setShowResumeDialog(false);
-    setIncompleteAnalysis(null);
+    setIncompleteAnalyses([]);
     setHasLoadedIncomplete(true);
   };
 
@@ -842,27 +848,30 @@ export default function StanzaAnalysis({
             </div>
           </DialogHeader>
 
-          {incompleteAnalysis && (
+          {incompleteAnalyses.length > 0 && (
             <div className="space-y-3 py-2">
               <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-sm text-muted-foreground mb-2">Aperçu :</p>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {incompleteAnalysis.selectedWords
-                    .slice(0, 5)
-                    .map((word, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {word}
-                      </Badge>
-                    ))}
-                  {incompleteAnalysis.selectedWords.length > 5 && (
-                    <Badge variant="secondary" className="text-xs">
-                      +{incompleteAnalysis.selectedWords.length - 5}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  {incompleteAnalysis.analysis}
+                <p className="text-sm text-muted-foreground mb-2">
+                  {incompleteAnalyses.length} analyse
+                  {incompleteAnalyses.length > 1 ? "s" : ""} trouvée
+                  {incompleteAnalyses.length > 1 ? "s" : ""} :
                 </p>
+                {incompleteAnalyses.slice(0, 2).map((incomplete, idx) => (
+                  <div key={incomplete.$id} className="mb-3 last:mb-0">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                      Analyse {idx + 1}
+                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {incomplete.analysis}
+                    </p>
+                  </div>
+                ))}
+                {incompleteAnalyses.length > 2 && (
+                  <p className="text-xs text-muted-foreground italic">
+                    +{incompleteAnalyses.length - 2} autre
+                    {incompleteAnalyses.length - 2 > 1 ? "s" : ""}...
+                  </p>
+                )}
               </div>
             </div>
           )}

@@ -183,14 +183,14 @@ export async function deleteAnalysis(analysisId: string): Promise<void> {
 }
 
 /**
- * Get incomplete analysis for a poem (to resume)
+ * Get all incomplete analyses for a poem (to resume)
  */
-export async function getIncompleteAnalysis(
+export async function getIncompleteAnalyses(
   userId: string,
   poemId: string,
-): Promise<SavedAnalysisDocument | null> {
+): Promise<SavedAnalysisDocument[]> {
   try {
-    console.log("🔍 Looking for incomplete analysis:", { userId, poemId });
+    console.log("🔍 Looking for incomplete analyses:", { userId, poemId });
     const response = await databases.listDocuments(
       appwriteConfig.databaseId,
       appwriteConfig.analysesCollectionId,
@@ -198,21 +198,15 @@ export async function getIncompleteAnalysis(
         Query.equal("userId", userId),
         Query.equal("poemId", poemId),
         Query.equal("completed", false),
-        Query.orderDesc("$updatedAt"),
-        Query.limit(1),
+        Query.orderAsc("$createdAt"),
       ],
     );
 
-    if (response.documents.length > 0) {
-      console.log("✅ Found incomplete analysis:", response.documents[0].$id);
-      return response.documents[0] as SavedAnalysisDocument;
-    }
-
-    console.log("ℹ️ No incomplete analysis found");
-    return null;
+    console.log(`✅ Found ${response.documents.length} incomplete analyses`);
+    return response.documents as SavedAnalysisDocument[];
   } catch (error: any) {
-    console.error("❌ Error getting incomplete analysis:", error);
-    return null;
+    console.error("❌ Error getting incomplete analyses:", error);
+    return [];
   }
 }
 
