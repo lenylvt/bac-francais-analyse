@@ -1,9 +1,23 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { sendOTP, verifyOTP } from "@/lib/appwrite/auth";
-import { Mail, Sparkles, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  Mail,
+  Sparkles,
+  Loader2,
+  CheckCircle2,
+  BookOpen,
+  ArrowRight,
+  Shield,
+} from "lucide-react";
 
 interface AuthProps {
   onSuccess: () => void;
@@ -29,7 +43,6 @@ export default function Auth({ onSuccess }: AuthProps) {
       setStep("otp");
       setCountdown(60);
 
-      // Countdown timer
       const interval = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
@@ -88,36 +101,86 @@ export default function Auth({ onSuccess }: AuthProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-black to-gray-700 mb-4">
-            <Sparkles className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-100 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+        <div className="absolute top-40 right-10 w-72 h-72 bg-purple-100 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-1/2 w-72 h-72 bg-pink-100 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
+      </div>
+
+      <style>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+      `}</style>
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Hero section */}
+        <div className="text-center mb-8 animate-float">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-black via-gray-800 to-gray-900 mb-6 shadow-2xl relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-3xl"></div>
+            <BookOpen className="w-10 h-10 text-white relative z-10" />
           </div>
-          <h1 className="text-3xl font-bold mb-2">BAC Français</h1>
-          <p className="text-muted-foreground">Analyse linéaire interactive</p>
+          <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-gray-900 via-black to-gray-800 bg-clip-text text-transparent">
+            BAC Français
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            Analyse linéaire avec l'IA
+          </p>
         </div>
 
-        <Card className="border-2 shadow-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        {/* Features badges */}
+        <div className="flex justify-center gap-2 mb-6 flex-wrap">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 backdrop-blur-sm border text-xs font-medium shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-yellow-600" />
+            Évaluation IA
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 backdrop-blur-sm border text-xs font-medium shadow-sm">
+            <Shield className="w-3.5 h-3.5 text-green-600" />
+            Connexion sécurisée
+          </div>
+        </div>
+
+        <Card className="border-2 shadow-2xl backdrop-blur-sm bg-white/95 overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="flex items-center gap-2 text-2xl">
               <Mail className="w-5 h-5" />
-              {step === "email" ? "Connexion" : "Vérification"}
+              {step === "email" ? "Commencer" : "Vérification"}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-base">
               {step === "email"
-                ? "Entrez votre email pour recevoir un code de connexion"
+                ? "Entrez votre email pour recevoir un code"
                 : `Code envoyé à ${email}`}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             {step === "email" ? (
-              <form onSubmit={handleSendOTP} className="space-y-4">
+              <form onSubmit={handleSendOTP} className="space-y-5">
                 <div className="space-y-2">
                   <label htmlFor="email" className="text-sm font-medium">
-                    Email
+                    Adresse email
                   </label>
                   <Input
                     id="email"
@@ -128,12 +191,12 @@ export default function Auth({ onSuccess }: AuthProps) {
                     disabled={loading}
                     required
                     autoFocus
-                    className="h-11"
+                    className="h-12 text-base"
                   />
                 </div>
 
                 {error && (
-                  <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                  <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg border border-destructive/20 animate-in slide-in-from-top-2">
                     {error}
                   </div>
                 )}
@@ -141,24 +204,30 @@ export default function Auth({ onSuccess }: AuthProps) {
                 <Button
                   type="submit"
                   disabled={loading || !email}
-                  className="w-full h-11 bg-black hover:bg-black/90"
+                  className="w-full h-12 bg-gradient-to-r from-black via-gray-900 to-gray-800 hover:from-gray-900 hover:via-gray-800 hover:to-black text-base font-medium shadow-lg transition-all duration-300"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                       Envoi en cours...
                     </>
                   ) : (
                     <>
-                      <Mail className="w-4 h-4 mr-2" />
                       Recevoir le code
+                      <ArrowRight className="w-5 h-5 ml-2" />
                     </>
                   )}
                 </Button>
+
+                <div className="text-center pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Connexion sans mot de passe
+                  </p>
+                </div>
               </form>
             ) : (
-              <form onSubmit={handleVerifyOTP} className="space-y-4">
-                <div className="space-y-2">
+              <form onSubmit={handleVerifyOTP} className="space-y-5">
+                <div className="space-y-3">
                   <label htmlFor="otp" className="text-sm font-medium">
                     Code de vérification
                   </label>
@@ -172,15 +241,19 @@ export default function Auth({ onSuccess }: AuthProps) {
                     required
                     autoFocus
                     maxLength={6}
-                    className="h-11 text-center text-2xl tracking-widest font-mono"
+                    className="h-16 text-center text-3xl tracking-[0.5em] font-mono font-bold"
                   />
-                  <p className="text-xs text-muted-foreground text-center">
-                    Entrez le code à 6 chiffres reçu par email
-                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs text-blue-900 text-center leading-relaxed">
+                      📧 Consultez votre boîte email
+                      <br />
+                      Le code expire dans quelques minutes
+                    </p>
+                  </div>
                 </div>
 
                 {error && (
-                  <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                  <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg border border-destructive/20 animate-in slide-in-from-top-2">
                     {error}
                   </div>
                 )}
@@ -188,22 +261,22 @@ export default function Auth({ onSuccess }: AuthProps) {
                 <Button
                   type="submit"
                   disabled={loading || otp.length !== 6}
-                  className="w-full h-11 bg-black hover:bg-black/90"
+                  className="w-full h-12 bg-gradient-to-r from-green-600 via-green-700 to-green-800 hover:from-green-700 hover:via-green-800 hover:to-green-900 text-base font-medium shadow-lg transition-all duration-300"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                       Vérification...
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Connexion
+                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                      Se connecter
                     </>
                   )}
                 </Button>
 
-                <div className="space-y-2">
+                <div className="space-y-3 pt-2">
                   <Button
                     type="button"
                     variant="ghost"
@@ -214,22 +287,25 @@ export default function Auth({ onSuccess }: AuthProps) {
                     }}
                     className="w-full"
                   >
-                    Changer d'email
+                    ← Changer d'email
                   </Button>
 
                   {countdown > 0 ? (
-                    <p className="text-sm text-center text-muted-foreground">
-                      Renvoyer le code dans {countdown}s
-                    </p>
+                    <div className="text-center">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/50 text-sm text-muted-foreground">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                        Renvoyer dans {countdown}s
+                      </div>
+                    </div>
                   ) : (
                     <Button
                       type="button"
                       variant="outline"
                       onClick={handleResendOTP}
                       disabled={loading}
-                      className="w-full"
+                      className="w-full border-2 hover:bg-muted/50"
                     >
-                      Renvoyer le code
+                      🔄 Renvoyer le code
                     </Button>
                   )}
                 </div>
@@ -238,9 +314,12 @@ export default function Auth({ onSuccess }: AuthProps) {
           </CardContent>
         </Card>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          Pas de mot de passe, juste un code sécurisé par email
-        </p>
+        <div className="text-center mt-6 space-y-2">
+          <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+            <Shield className="w-4 h-4" />
+            Connexion sécurisée par code OTP
+          </p>
+        </div>
       </div>
     </div>
   );
