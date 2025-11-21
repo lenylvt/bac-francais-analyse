@@ -212,9 +212,9 @@ function App() {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-muted-foreground">Chargement...</p>
         </div>
       </div>
@@ -265,10 +265,10 @@ function App() {
           isLoading={isEvaluating}
         />
         {isEvaluating && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
+          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-card rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
               <div className="flex flex-col items-center space-y-4">
-                <Loader2 className="w-12 h-12 animate-spin text-black" />
+                <Loader2 className="w-12 h-12 animate-spin text-primary" />
                 <div className="space-y-2 text-center">
                   <h3 className="font-semibold text-lg">
                     Évaluation en cours...

@@ -15,10 +15,13 @@ import {
   Search,
   X,
   BarChart3,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { logout, getCurrentUser } from "@/lib/appwrite/auth";
 import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
 import { getAllPoems, type PoemDocument } from "@/lib/appwrite/poems";
+import { useTheme } from "@/hooks/useTheme";
 
 interface PoemSelectorProps {
   onSelect: (poemId: string) => void;
@@ -29,6 +32,7 @@ export default function PoemSelector({
   onSelect,
   onProgress,
 }: PoemSelectorProps) {
+  const { theme, toggleTheme } = useTheme();
   const [stats, setStats] = useState({
     totalAnalyses: 0,
     completedAnalyses: 0,
@@ -103,13 +107,13 @@ export default function PoemSelector({
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col overflow-hidden">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Compact Header */}
-      <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-2.5 flex items-center justify-between">
+      <div className="flex-shrink-0 border-b bg-card shadow-sm">
+        <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-black to-gray-700 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
               <h1 className="text-base font-bold">BAC Français</h1>
@@ -139,6 +143,19 @@ export default function PoemSelector({
               </div>
             )}
             <div className="h-4 w-px bg-border hidden md:block" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="h-8 w-8 p-0"
+              title={theme === "dark" ? "Mode clair" : "Mode sombre"}
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -205,7 +222,6 @@ export default function PoemSelector({
                 variant={selectedAuthor === null ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedAuthor(null)}
-                className={selectedAuthor === null ? "bg-black" : ""}
               >
                 Tous les auteurs
               </Button>
@@ -216,7 +232,6 @@ export default function PoemSelector({
                     variant={selectedAuthor === author ? "default" : "outline"}
                     size="sm"
                     onClick={() => setSelectedAuthor(author)}
-                    className={selectedAuthor === author ? "bg-black" : ""}
                   >
                     {author}
                   </Button>
@@ -253,8 +268,10 @@ export default function PoemSelector({
                 return (
                   <Card
                     key={dbPoem.$id}
-                    className={`group cursor-pointer border-2 hover:border-black hover:shadow-md transition-all duration-200 ${
-                      hasIncomplete ? "border-amber-500/50 bg-amber-50/30" : ""
+                    className={`group cursor-pointer border-2 hover:border-primary hover:shadow-md transition-all duration-200 ${
+                      hasIncomplete
+                        ? "border-amber-500/50 bg-amber-500/5 dark:bg-amber-500/10"
+                        : ""
                     }`}
                     onClick={() => onSelect(dbPoem.$id)}
                   >
@@ -262,18 +279,18 @@ export default function PoemSelector({
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start gap-3 mb-3">
-                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-black to-gray-700 flex items-center justify-center">
-                              <BookOpen className="w-5 h-5 text-white" />
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                              <BookOpen className="w-5 h-5 text-primary-foreground" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="text-lg font-bold group-hover:text-black transition-colors">
+                                <h3 className="text-lg font-bold transition-colors">
                                   {dbPoem.title}
                                 </h3>
                                 {hasIncomplete && (
                                   <Badge
                                     variant="outline"
-                                    className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-700 border-amber-500/30 flex items-center gap-1"
+                                    className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 flex items-center gap-1"
                                   >
                                     <Clock className="w-3 h-3" />
                                     En cours
@@ -306,7 +323,7 @@ export default function PoemSelector({
                         </div>
 
                         <div className="flex-shrink-0">
-                          <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-black group-hover:text-white flex items-center justify-center transition-colors">
+                          <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-primary group-hover:text-primary-foreground flex items-center justify-center transition-colors">
                             <ChevronRight className="w-4 h-4" />
                           </div>
                         </div>

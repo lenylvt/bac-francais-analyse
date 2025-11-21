@@ -1,9 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Zap, BookMarked, ArrowLeft, ChevronRight } from "lucide-react";
+import {
+  Zap,
+  BookMarked,
+  ArrowLeft,
+  ChevronRight,
+  Moon,
+  Sun,
+} from "lucide-react";
 import type { Mode } from "@/types";
 import { useState } from "react";
+import { useTheme } from "@/hooks/useTheme";
 
 interface ModeSelectorProps {
   poemTitle: string;
@@ -16,6 +24,7 @@ export default function ModeSelector({
   onSelect,
   onBack,
 }: ModeSelectorProps) {
+  const { theme, toggleTheme } = useTheme();
   const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
 
   const handleModeClick = (mode: Mode) => {
@@ -30,16 +39,31 @@ export default function ModeSelector({
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="sticky top-0 z-10 bg-background border-b">
+      <div className="sticky top-0 z-10 bg-card border-b shadow-sm">
         <div className="p-4">
-          <Button
-            variant="ghost"
-            onClick={onBack}
-            className="-ml-2 mb-3 touch-manipulation min-h-[44px]"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour
-          </Button>
+          <div className="flex items-center justify-between mb-3">
+            <Button
+              variant="ghost"
+              onClick={onBack}
+              className="-ml-2 touch-manipulation min-h-[44px]"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Retour
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="h-9 w-9 p-0"
+              title={theme === "dark" ? "Mode clair" : "Mode sombre"}
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
           <h1 className="text-xl font-bold leading-tight">{poemTitle}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Choisissez votre mode d'entraînement
@@ -51,15 +75,15 @@ export default function ModeSelector({
         <Card
           className={`cursor-pointer active:scale-[0.98] transition-all border-2 ${
             selectedMode === "complete"
-              ? "border-foreground shadow-lg"
-              : "border-border"
+              ? "border-primary shadow-lg"
+              : "border-border hover:border-muted-foreground"
           }`}
           onClick={() => handleModeClick("complete")}
         >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3 flex-1">
-                <div className="p-2.5 rounded-lg bg-foreground text-background shrink-0">
+                <div className="p-2.5 rounded-lg bg-primary text-primary-foreground shrink-0">
                   <BookMarked className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
@@ -91,8 +115,8 @@ export default function ModeSelector({
         <Card
           className={`cursor-pointer active:scale-[0.98] transition-all border-2 ${
             selectedMode === "quick"
-              ? "border-foreground shadow-lg"
-              : "border-border"
+              ? "border-primary shadow-lg"
+              : "border-border hover:border-muted-foreground"
           }`}
           onClick={() => handleModeClick("quick")}
         >
@@ -124,7 +148,7 @@ export default function ModeSelector({
         </Card>
       </div>
 
-      <div className="sticky bottom-0 z-10 bg-background border-t p-4">
+      <div className="sticky bottom-0 z-10 bg-card border-t shadow-[0_-2px_10px_rgba(0,0,0,0.05)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)] p-4">
         <Button
           className="w-full min-h-[52px] text-base touch-manipulation"
           size="lg"

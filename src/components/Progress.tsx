@@ -20,9 +20,12 @@ import {
   BarChart3,
   Target,
   Award,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useTheme } from "@/hooks/useTheme";
 
 interface ProgressProps {
   userId: string;
@@ -35,6 +38,7 @@ export default function Progress({
   onBack,
   onViewResult,
 }: ProgressProps) {
+  const { theme, toggleTheme } = useTheme();
   const [results, setResults] = useState<ResultDocument[]>([]);
   const [stats, setStats] = useState({
     totalTests: 0,
@@ -109,20 +113,30 @@ export default function Progress({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b">
+      <div className="sticky top-0 z-10 bg-card border-b shadow-sm">
         <div className="p-4">
-          <Button
-            onClick={onBack}
-            variant="ghost"
-            size="sm"
-            className="mb-3"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour
-          </Button>
+          <div className="flex items-center justify-between mb-3">
+            <Button onClick={onBack} variant="ghost" size="sm">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Retour
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="h-9 w-9 p-0"
+              title={theme === "dark" ? "Mode clair" : "Mode sombre"}
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-black mb-3">
-              <BarChart3 className="w-6 h-6 text-white" />
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary mb-3">
+              <BarChart3 className="w-6 h-6 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold">Suivi de progression</h1>
             <p className="text-sm text-muted-foreground">
@@ -223,15 +237,11 @@ export default function Progress({
                         </p>
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant="outline" className="text-xs">
-                            {result.mode === "complete"
-                              ? "Complet"
-                              : "Rapide"}
+                            {result.mode === "complete" ? "Complet" : "Rapide"}
                           </Badge>
                           <Badge variant="secondary" className="text-xs">
                             {result.totalStanzas}{" "}
-                            {result.totalStanzas > 1
-                              ? "strophes"
-                              : "strophe"}
+                            {result.totalStanzas > 1 ? "strophes" : "strophe"}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
                             {format(

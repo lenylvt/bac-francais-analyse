@@ -19,6 +19,8 @@ import {
   Sparkles,
   AlertCircle,
   GripVertical,
+  Moon,
+  Sun,
 } from "lucide-react";
 import type { Poem, UserAnswer } from "@/types";
 import {
@@ -28,6 +30,7 @@ import {
   getIncompleteAnalyses,
   type SavedAnalysisDocument,
 } from "@/lib/appwrite/database";
+import { useTheme } from "@/hooks/useTheme";
 
 interface StanzaAnalysisProps {
   poem: Poem;
@@ -67,6 +70,7 @@ export default function StanzaAnalysis({
   onBack,
   isLoading = false,
 }: StanzaAnalysisProps) {
+  const { theme, toggleTheme } = useTheme();
   const stanza = poem.stanzas[stanzaIndex];
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(
     new Set(),
@@ -511,9 +515,9 @@ export default function StanzaAnalysis({
   });
 
   return (
-    <div className="h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col overflow-hidden">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur">
+      <div className="flex-shrink-0 border-b bg-card shadow-sm">
         <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button
@@ -536,21 +540,38 @@ export default function StanzaAnalysis({
             </div>
           </div>
 
-          {/* Review button in header */}
-          {savedAnalyses.length > 0 && (
+          <div className="flex items-center gap-2">
+            {/* Theme toggle */}
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => setShowReviewDialog(true)}
-              className="h-8 gap-2"
+              onClick={toggleTheme}
+              className="h-8 w-8 p-0"
+              title={theme === "dark" ? "Mode clair" : "Mode sombre"}
             >
-              <Eye className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">
-                Revoir ({savedAnalyses.length})
-              </span>
-              <span className="sm:hidden">{savedAnalyses.length}</span>
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
             </Button>
-          )}
+
+            {/* Review button in header */}
+            {savedAnalyses.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReviewDialog(true)}
+                className="h-8 gap-2"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  Revoir ({savedAnalyses.length})
+                </span>
+                <span className="sm:hidden">{savedAnalyses.length}</span>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -584,13 +605,13 @@ export default function StanzaAnalysis({
 
             {/* Right: Sidebar (resizable) */}
             <div
-              className="flex flex-col bg-muted/20"
+              className="flex flex-col bg-muted/50 dark:bg-muted/20"
               style={{ width: `${sidebarWidth}px` }}
             >
               <div className="flex-1 flex flex-col p-6 gap-4 min-h-0">
                 {/* Selection badge */}
                 {selectedWordIds.size > 0 && (
-                  <div className="bg-background rounded-lg border p-4 flex-shrink-0">
+                  <div className="bg-card rounded-lg border p-4 flex-shrink-0">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-medium text-muted-foreground">
                         {selectedWordIds.size} mot
@@ -612,7 +633,7 @@ export default function StanzaAnalysis({
                           <Badge
                             key={wordData.uniqueId}
                             variant="secondary"
-                            className="text-xs bg-black text-white hover:bg-black/90 pr-1"
+                            className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 pr-1"
                           >
                             {wordData.cleanWord}
                             <button
@@ -629,7 +650,7 @@ export default function StanzaAnalysis({
                 )}
 
                 {/* Analysis textarea - flexible height */}
-                <div className="bg-background rounded-lg border p-4 flex-1 flex flex-col min-h-0">
+                <div className="bg-card rounded-lg border p-4 flex-1 flex flex-col min-h-0">
                   <label className="text-xs font-medium text-muted-foreground mb-2 block flex-shrink-0">
                     Votre analyse
                   </label>
@@ -637,7 +658,7 @@ export default function StanzaAnalysis({
                     value={analysis}
                     onChange={(e) => setAnalysis(e.target.value)}
                     placeholder="Expliquez le sens et l'effet des mots sélectionnés..."
-                    className="w-full flex-1 px-3 py-2 text-sm border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-black min-h-0"
+                    className="w-full flex-1 px-3 py-2 text-sm bg-background border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-ring min-h-0"
                     disabled={isSaving}
                   />
                 </div>
@@ -657,7 +678,7 @@ export default function StanzaAnalysis({
                       <Button
                         onClick={handleSaveEdit}
                         disabled={!canSave || isSaving}
-                        className="w-full bg-black hover:bg-black/90 gap-2"
+                        className="w-full gap-2"
                       >
                         {isSaving ? (
                           <>
@@ -680,7 +701,7 @@ export default function StanzaAnalysis({
                     <Button
                       onClick={handleSaveAnalysis}
                       disabled={!canSave || isSaving}
-                      className="w-full bg-black hover:bg-black/90 gap-2"
+                      className="w-full gap-2"
                     >
                       {isSaving ? (
                         <>
@@ -710,7 +731,7 @@ export default function StanzaAnalysis({
 
                 {/* Selection */}
                 {selectedWordIds.size > 0 && (
-                  <div className="bg-muted/50 rounded-lg p-4 mb-4">
+                  <div className="bg-card rounded-lg border p-4 mb-4">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-medium">
                         {selectedWordIds.size} mot
@@ -731,7 +752,7 @@ export default function StanzaAnalysis({
                           <Badge
                             key={wordData.uniqueId}
                             variant="secondary"
-                            className="text-xs bg-black text-white pr-1"
+                            className="text-xs bg-primary text-primary-foreground pr-1"
                           >
                             {wordData.cleanWord}
                             <button
@@ -756,7 +777,7 @@ export default function StanzaAnalysis({
                     value={analysis}
                     onChange={(e) => setAnalysis(e.target.value)}
                     placeholder="Expliquez le sens et l'effet des mots sélectionnés..."
-                    className="w-full h-40 px-3 py-2 text-sm border rounded-md resize-none"
+                    className="w-full h-40 px-3 py-2 text-sm bg-background border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                     disabled={isSaving}
                   />
                 </div>
@@ -770,7 +791,7 @@ export default function StanzaAnalysis({
                         : handleSaveAnalysis
                     }
                     disabled={!canSave || isSaving}
-                    className="w-full bg-black hover:bg-black/90"
+                    className="w-full"
                   >
                     {isSaving ? (
                       <>
