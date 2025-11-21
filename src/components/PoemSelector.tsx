@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { Poem } from "@/types";
 import {
   BookOpen,
@@ -11,6 +12,8 @@ import {
   Sparkles,
   ChevronRight,
   Clock,
+  Search,
+  X,
 } from "lucide-react";
 import { logout, getCurrentUser } from "@/lib/appwrite/auth";
 import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
@@ -33,6 +36,8 @@ export default function PoemSelector({ onSelect }: PoemSelectorProps) {
     new Set(),
   );
   const [dbPoems, setDbPoems] = useState<PoemDocument[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -158,75 +163,173 @@ export default function PoemSelector({ onSelect }: PoemSelectorProps) {
             </p>
           </div>
 
+          {/* Search & Filters */}
+          <div className="mb-6 space-y-3">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Rechercher un poème..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter by Author */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={selectedAuthor === null ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedAuthor(null)}
+                className={selectedAuthor === null ? "bg-black" : ""}
+              >
+                Tous les auteurs
+              </Button>
+              {Array.from(new Set(dbPoems.map((p) => p.author))).map(
+                (author) => (
+                  <Button
+                    key={author}
+                    variant={selectedAuthor === author ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedAuthor(author)}
+                    className={selectedAuthor === author ? "bg-black" : ""}
+                  >
+                    {author}
+                  </Button>
+                ),
+              )}
+            </div>
+          </div>
+
           {/* DB Poems Section */}
           <div className="space-y-3">
-            {dbPoems.map((dbPoem) => {
-              const hasIncomplete = incompletePoems.has(dbPoem.$id);
-              return (
-                <Card
-                  key={dbPoem.$id}
-                  className={`group cursor-pointer border-2 hover:border-black hover:shadow-md transition-all duration-200 ${
-                    hasIncomplete ? "border-amber-500/50 bg-amber-50/30" : ""
-                  }`}
-                  onClick={() => onSelect(dbPoem.$id)}
-                >
-                  <CardContent className="p-4 md:p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-3 mb-3">
-                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-black to-gray-700 flex items-center justify-center">
-                            <BookOpen className="w-5 h-5 text-white" />
+            {dbPoems
+              .filter((poem) => {
+                // Filter by search query
+                const matchesSearch =
+                  searchQuery === "" ||
+                  poem.title
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase()) ||
+                  poem.author
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase()) ||
+                  poem.fullText
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase());
+
+                // Filter by author
+                const matchesAuthor =
+                  selectedAuthor === null || poem.author === selectedAuthor;
+
+                return matchesSearch && matchesAuthor;
+              })
+              .map((dbPoem) => {
+                const hasIncomplete = incompletePoems.has(dbPoem.$id);
+                return (
+                  <Card
+                    key={dbPoem.$id}
+                    className={`group cursor-pointer border-2 hover:border-black hover:shadow-md transition-all duration-200 ${
+                      hasIncomplete ? "border-amber-500/50 bg-amber-50/30" : ""
+                    }`}
+                    onClick={() => onSelect(dbPoem.$id)}
+                  >
+                    <CardContent className="p-4 md:p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-black to-gray-700 flex items-center justify-center">
+                              <BookOpen className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="text-lg font-bold group-hover:text-black transition-colors">
+                                  {dbPoem.title}
+                                </h3>
+                                {hasIncomplete && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-700 border-amber-500/30 flex items-center gap-1"
+                                  >
+                                    <Clock className="w-3 h-3" />
+                                    En cours
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1.5">
+                                  <User className="w-3.5 h-3.5" />
+                                  {dbPoem.author}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-lg font-bold group-hover:text-black transition-colors">
-                                {dbPoem.title}
-                              </h3>
-                              {hasIncomplete && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-700 border-amber-500/30 flex items-center gap-1"
-                                >
-                                  <Clock className="w-3 h-3" />
-                                  En cours
-                                </Badge>
-                              )}
+
+                          {dbPoem.analyses && (
+                            <div className="bg-muted/50 border rounded-lg p-3 mb-3">
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Analyses disponibles
+                              </p>
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {dbPoem.analyses}
+                              </p>
                             </div>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5" />
-                                {dbPoem.author}
-                              </span>
-                            </div>
+                          )}
+
+                          <div className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 line-clamp-3">
+                            {dbPoem.fullText.split("\n").slice(0, 2).join(" ")}
                           </div>
                         </div>
 
-                        {dbPoem.analyses && (
-                          <div className="bg-muted/50 border rounded-lg p-3 mb-3">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">
-                              Analyses disponibles
-                            </p>
-                            <p className="text-xs text-muted-foreground line-clamp-2">
-                              {dbPoem.analyses}
-                            </p>
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-black group-hover:text-white flex items-center justify-center transition-colors">
+                            <ChevronRight className="w-4 h-4" />
                           </div>
-                        )}
-
-                        <div className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 line-clamp-3">
-                          {dbPoem.fullText.split("\n").slice(0, 2).join(" ")}
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
 
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-black group-hover:text-white flex items-center justify-center transition-colors">
-                          <ChevronRight className="w-4 h-4" />
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {/* No results message */}
+            {dbPoems.filter((poem) => {
+              const matchesSearch =
+                searchQuery === "" ||
+                poem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                poem.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                poem.fullText.toLowerCase().includes(searchQuery.toLowerCase());
+              const matchesAuthor =
+                selectedAuthor === null || poem.author === selectedAuthor;
+              return matchesSearch && matchesAuthor;
+            }).length === 0 && (
+              <div className="text-center py-12">
+                <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Aucun poème trouvé</p>
+                {(searchQuery || selectedAuthor) && (
+                  <Button
+                    variant="link"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedAuthor(null);
+                    }}
+                    className="mt-2"
+                  >
+                    Réinitialiser les filtres
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
