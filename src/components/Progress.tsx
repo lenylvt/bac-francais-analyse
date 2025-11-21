@@ -4,6 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
   getUserResults,
   getUserResultsStats,
   deleteResult,
@@ -22,10 +29,14 @@ import {
   Award,
   Moon,
   Sun,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useTheme } from "@/hooks/useTheme";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 interface ProgressProps {
   userId: string;
@@ -49,6 +60,7 @@ export default function Progress({
   });
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -284,6 +296,19 @@ export default function Progress({
                         <Eye className="w-4 h-4 mr-2" />
                         Voir le détail
                       </Button>
+                      {result.evaluations[0]?.analysis && (
+                        <Button
+                          onClick={() =>
+                            setSelectedAnalysis(result.evaluations[0].analysis)
+                          }
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Analyse
+                        </Button>
+                      )}
                       <Button
                         onClick={() => handleDelete(result.$id)}
                         variant="ghost"
@@ -301,6 +326,25 @@ export default function Progress({
           )}
         </div>
       </div>
+
+      {/* Analysis Modal */}
+      <Dialog
+        open={!!selectedAnalysis}
+        onOpenChange={() => setSelectedAnalysis(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>Analyse complète</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[calc(85vh-100px)] pr-4">
+            <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                {selectedAnalysis || ""}
+              </ReactMarkdown>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

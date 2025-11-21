@@ -3,10 +3,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Poem } from "@/types";
 import {
   BookOpen,
-  Calendar,
   User,
   LogOut,
   Sparkles,
@@ -17,11 +23,17 @@ import {
   BarChart3,
   Moon,
   Sun,
+  Plus,
+  FileText,
 } from "lucide-react";
 import { logout, getCurrentUser } from "@/lib/appwrite/auth";
 import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
 import { getAllPoems, type PoemDocument } from "@/lib/appwrite/poems";
 import { useTheme } from "@/hooks/useTheme";
+import CommunityRequestDialog from "./CommunityRequestDialog";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 interface PoemSelectorProps {
   onSelect: (poemId: string) => void;
@@ -39,7 +51,6 @@ export default function PoemSelector({
     averageScore: 0,
   });
   const [userEmail, setUserEmail] = useState("");
-  const [userId, setUserId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [incompletePoems, setIncompletePoems] = useState<Set<string>>(
     new Set(),
@@ -47,6 +58,11 @@ export default function PoemSelector({
   const [dbPoems, setDbPoems] = useState<PoemDocument[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
+  const [showCommunityDialog, setShowCommunityDialog] = useState(false);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<{
+    title: string;
+    analysis: string;
+  } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -64,7 +80,6 @@ export default function PoemSelector({
       const user = await getCurrentUser();
       if (user) {
         setUserEmail(user.email);
-        setUserId(user.$id);
         const userStats = await getUserStats(user.$id);
         setStats(userStats);
       }
@@ -187,11 +202,21 @@ export default function PoemSelector({
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1400px] mx-auto px-6 md:px-12 py-8">
           {/* Title */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-1">Poèmes</h2>
-            <p className="text-sm text-muted-foreground">
-              Sélectionnez un poème pour commencer votre analyse
-            </p>
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold mb-1">Poèmes</h2>
+              <p className="text-sm text-muted-foreground">
+                Sélectionnez un poème pour commencer votre analyse
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowCommunityDialog(true)}
+              className="gap-2 shrink-0"
+              variant="outline"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Demande communautaire</span>
+            </Button>
           </div>
 
           {/* Search & Filters */}
@@ -268,16 +293,18 @@ export default function PoemSelector({
                 return (
                   <Card
                     key={dbPoem.$id}
-                    className={`group cursor-pointer border-2 hover:border-primary hover:shadow-md transition-all duration-200 ${
+                    className={`group border-2 hover:border-primary hover:shadow-md transition-all duration-200 ${
                       hasIncomplete
                         ? "border-amber-500/50 bg-amber-500/5 dark:bg-amber-500/10"
                         : ""
                     }`}
-                    onClick={() => onSelect(dbPoem.$id)}
                   >
                     <CardContent className="p-4 md:p-5">
                       <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
+                        <div
+                          className="flex-1 min-w-0 cursor-pointer"
+                          onClick={() => onSelect(dbPoem.$id)}
+                        >
                           <div className="flex items-start gap-3 mb-3">
                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary flex items-center justify-center">
                               <BookOpen className="w-5 h-5 text-primary-foreground" />
@@ -307,22 +334,28 @@ export default function PoemSelector({
                           </div>
 
                           {dbPoem.analyses && (
-                            <div className="bg-muted/50 border rounded-lg p-3 mb-3">
-                              <p className="text-xs font-medium text-muted-foreground mb-1">
-                                Analyses disponibles
-                              </p>
-                              <p className="text-xs text-muted-foreground line-clamp-2">
-                                {dbPoem.analyses}
-                              </p>
-                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAnalysis({
+                                  title: dbPoem.title,
+                                  analysis: dbPoem.analyses || "",
+                                });
+                              }}
+                              className="flex items-center gap-2"
+                            >
+                              <FileText className="w-4 h-4" />
+                              Lire l'analyse
+                            </Button>
                           )}
-
-                          <div className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 line-clamp-3">
-                            {dbPoem.fullText.split("\n").slice(0, 2).join(" ")}
-                          </div>
                         </div>
 
-                        <div className="flex-shrink-0">
+                        <div
+                          className="flex-shrink-0 cursor-pointer"
+                          onClick={() => onSelect(dbPoem.$id)}
+                        >
                           <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-primary group-hover:text-primary-foreground flex items-center justify-center transition-colors">
                             <ChevronRight className="w-4 h-4" />
                           </div>
@@ -364,6 +397,34 @@ export default function PoemSelector({
           </div>
         </div>
       </div>
+
+      {/* Community Request Dialog */}
+      <CommunityRequestDialog
+        open={showCommunityDialog}
+        onOpenChange={setShowCommunityDialog}
+        onPoemAdded={() => {
+          loadPoemsFromDB();
+        }}
+      />
+
+      {/* Analysis Modal */}
+      <Dialog
+        open={!!selectedAnalysis}
+        onOpenChange={() => setSelectedAnalysis(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>{selectedAnalysis?.title}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[calc(85vh-100px)] pr-4">
+            <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                {selectedAnalysis?.analysis || ""}
+              </ReactMarkdown>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

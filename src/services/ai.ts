@@ -82,7 +82,8 @@ Analyse : ${userAnswer.analysis}
   "score": <nombre entre 0 et 20>,
   "feedback": "<commentaire général>",
   "missedPoints": ["<point 1>", "<point 2>"],
-  "strengths": ["<force 1>", "<force 2>"]
+  "strengths": ["<force 1>", "<force 2>"],
+  "analysis": "<analyse littéraire complète et détaillée de la strophe au format markdown avec figures de style, thèmes, structure, etc.>"
 }
 
 Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
@@ -136,7 +137,8 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
       typeof evaluation.score !== "number" ||
       !evaluation.feedback ||
       !Array.isArray(evaluation.missedPoints) ||
-      !Array.isArray(evaluation.strengths)
+      !Array.isArray(evaluation.strengths) ||
+      !evaluation.analysis
     ) {
       throw new Error("Format de réponse invalide");
     }

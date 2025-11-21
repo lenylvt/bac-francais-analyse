@@ -6,16 +6,8 @@ const endpoint =
   import.meta.env.VITE_APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
 const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID || "";
 
-console.log("🔧 Appwrite Config:", {
-  endpoint,
-  projectId: projectId ? projectId.substring(0, 8) + "..." : "MISSING",
-  databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID || "MISSING",
-  collectionId:
-    import.meta.env.VITE_APPWRITE_ANALYSES_COLLECTION_ID || "MISSING",
-});
-
 if (!projectId) {
-  console.error("❌ VITE_APPWRITE_PROJECT_ID is missing!");
+  throw new Error("VITE_APPWRITE_PROJECT_ID is missing!");
 }
 
 client.setEndpoint(endpoint).setProject(projectId);

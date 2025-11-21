@@ -41,19 +41,6 @@ export async function createAnalysis(
   data: CreateAnalysisData,
 ): Promise<SavedAnalysisDocument> {
   try {
-    console.log("📝 Creating analysis with data:", {
-      userId: data.userId,
-      poemId: data.poemId,
-      poemTitle: data.poemTitle,
-      stanzaId: data.stanzaId,
-      selectedWordsCount: data.selectedWords.length,
-      analysisLength: data.analysis.length,
-    });
-    console.log("🔧 Using config:", {
-      databaseId: appwriteConfig.databaseId,
-      collectionId: appwriteConfig.analysesCollectionId,
-    });
-
     const document = await databases.createDocument(
       appwriteConfig.databaseId,
       appwriteConfig.analysesCollectionId,
@@ -68,16 +55,8 @@ export async function createAnalysis(
         completed: data.completed || false,
       },
     );
-    console.log("✅ Analysis created successfully:", document.$id);
     return document as SavedAnalysisDocument;
   } catch (error: any) {
-    console.error("❌ Error creating analysis:", error);
-    console.error("Error details:", {
-      message: error.message,
-      code: error.code,
-      type: error.type,
-      response: error.response,
-    });
     throw new Error(
       `Erreur lors de la sauvegarde: ${error.message || "Erreur inconnue"}`,
     );
@@ -92,22 +71,14 @@ export async function updateAnalysis(
   data: UpdateAnalysisData,
 ): Promise<SavedAnalysisDocument> {
   try {
-    console.log("📝 Updating analysis:", analysisId, data);
     const document = await databases.updateDocument(
       appwriteConfig.databaseId,
       appwriteConfig.analysesCollectionId,
       analysisId,
       data,
     );
-    console.log("✅ Analysis updated successfully");
     return document as SavedAnalysisDocument;
   } catch (error: any) {
-    console.error("❌ Error updating analysis:", error);
-    console.error("Error details:", {
-      message: error.message,
-      code: error.code,
-      type: error.type,
-    });
     throw new Error(
       `Erreur lors de la mise à jour: ${error.message || "Erreur inconnue"}`,
     );
@@ -122,7 +93,6 @@ export async function getUserAnalysesForPoem(
   poemId: string,
 ): Promise<SavedAnalysisDocument[]> {
   try {
-    console.log("📚 Loading analyses for:", { userId, poemId });
     const response = await databases.listDocuments(
       appwriteConfig.databaseId,
       appwriteConfig.analysesCollectionId,
@@ -132,15 +102,8 @@ export async function getUserAnalysesForPoem(
         Query.orderDesc("$createdAt"),
       ],
     );
-    console.log(`✅ Loaded ${response.documents.length} analyses`);
     return response.documents as SavedAnalysisDocument[];
   } catch (error: any) {
-    console.error("❌ Error getting analyses:", error);
-    console.error("Error details:", {
-      message: error.message,
-      code: error.code,
-      type: error.type,
-    });
     throw new Error(
       `Erreur lors de la récupération: ${error.message || "Erreur inconnue"}`,
     );
@@ -190,7 +153,6 @@ export async function getIncompleteAnalyses(
   poemId: string,
 ): Promise<SavedAnalysisDocument[]> {
   try {
-    console.log("🔍 Looking for incomplete analyses:", { userId, poemId });
     const response = await databases.listDocuments(
       appwriteConfig.databaseId,
       appwriteConfig.analysesCollectionId,

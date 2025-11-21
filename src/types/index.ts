@@ -36,6 +36,7 @@ export interface AIEvaluation {
   feedback: string;
   missedPoints: string[];
   strengths: string[];
+  analysis: string;
 }
 
 export type Mode = "complete" | "quick";
