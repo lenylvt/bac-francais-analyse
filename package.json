@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "setup-db": "node scripts/setup-appwrite.js",
     "test-db": "node scripts/test-db.js",
-    "setup-poems-db": "node scripts/setup-poems-db.cjs"
+    "setup-poems-db": "node scripts/setup-poems-db.cjs",
+    "json-to-csv": "node scripts/json-to-csv.cjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

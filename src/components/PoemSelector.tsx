@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { logout, getCurrentUser } from "@/lib/appwrite/auth";
 import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
+import { getAllPoems, type PoemDocument } from "@/lib/appwrite/poems";
 
 interface PoemSelectorProps {
   poems: Poem[];
@@ -32,9 +33,11 @@ export default function PoemSelector({ poems, onSelect }: PoemSelectorProps) {
   const [incompletePoems, setIncompletePoems] = useState<Set<string>>(
     new Set(),
   );
+  const [dbPoems, setDbPoems] = useState<PoemDocument[]>([]);
 
   useEffect(() => {
     loadUserData();
+    loadPoemsFromDB();
   }, []);
 
   const loadUserData = async () => {
@@ -60,6 +63,15 @@ export default function PoemSelector({ poems, onSelect }: PoemSelectorProps) {
       console.error("Error loading user data:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadPoemsFromDB = async () => {
+    try {
+      const poems = await getAllPoems();
+      setDbPoems(poems);
+    } catch (error) {
+      console.error("Error loading poems from DB:", error);
     }
   };
 
@@ -138,8 +150,73 @@ export default function PoemSelector({ poems, onSelect }: PoemSelectorProps) {
             </p>
           </div>
 
-          {/* Poems List */}
-          <div className="space-y-3">
+          {/* DB Poems Section */}
+          {dbPoems.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                Poèmes de la base de données
+              </h3>
+              <div className="space-y-3">
+                {dbPoems.map((dbPoem) => (
+                  <Card
+                    key={dbPoem.$id}
+                    className="group cursor-pointer border-2 hover:border-black hover:shadow-md transition-all duration-200"
+                  >
+                    <CardContent className="p-4 md:p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center">
+                              <BookOpen className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg font-bold mb-1 group-hover:text-black transition-colors">
+                                {dbPoem.title}
+                              </h3>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1.5">
+                                  <User className="w-3.5 h-3.5" />
+                                  {dbPoem.author}
+                                </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {dbPoem.analyses && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3">
+                              <p className="text-xs font-medium text-purple-900 mb-1">
+                                Analyses disponibles
+                              </p>
+                              <p className="text-xs text-purple-700 line-clamp-2">
+                                {dbPoem.analyses}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="text-sm text-muted-foreground italic border-l-2 border-purple-300 pl-3 line-clamp-3">
+                            {dbPoem.fullText.split('\n').slice(0, 2).join(' ')}
+                          </div>
+                        </div>
+
+                        <div className="flex-shrink-0">
+                          <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-300">
+                            DB
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Local Poems List */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Poèmes locaux</h3>
+            <div className="space-y-3">
             {poems.map((poem) => {
               const hasIncomplete = incompletePoems.has(poem.id);
               return (
@@ -210,6 +287,7 @@ export default function PoemSelector({ poems, onSelect }: PoemSelectorProps) {
                 </Card>
               );
             })}
+            </div>
           </div>
         </div>
       </div>

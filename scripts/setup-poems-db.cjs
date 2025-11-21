@@ -67,6 +67,14 @@ async function setupPoemsCollection() {
         array: false,
         default: null,
       },
+      {
+        key: "analyses",
+        type: "string",
+        size: 10000,
+        required: false,
+        array: false,
+        default: null,
+      },
     ];
 
     for (const attr of attributes) {
