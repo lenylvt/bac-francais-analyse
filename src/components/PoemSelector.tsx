@@ -69,6 +69,28 @@ export default function PoemSelector({
     loadData();
   }, []);
 
+  // Recharger les analyses incomplètes à chaque montage du composant
+  useEffect(() => {
+    const reloadIncomplete = async () => {
+      const user = await getCurrentUser();
+      if (user && dbPoems.length > 0) {
+        const incomplete = new Set<string>();
+        for (const poem of dbPoems) {
+          const analyses = await getIncompleteAnalyses(user.$id, poem.$id);
+          if (analyses.length > 0) {
+            incomplete.add(poem.$id);
+          }
+        }
+        setIncompletePoems(incomplete);
+        console.log("🔄 Analyses incomplètes rechargées:", incomplete.size);
+      }
+    };
+
+    if (dbPoems.length > 0) {
+      reloadIncomplete();
+    }
+  }, [dbPoems.length]);
+
   const loadData = async () => {
     // Load poems first
     await loadPoemsFromDB();
@@ -109,6 +131,7 @@ export default function PoemSelector({
           }
         }
         setIncompletePoems(incomplete);
+        console.log("📊 Poèmes avec analyses incomplètes:", incomplete.size);
       }
     } catch (error) {
       console.error("Error loading poems from DB:", error);
@@ -334,7 +357,7 @@ export default function PoemSelector({
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="text-lg font-bold transition-colors">
+                                <h3 className="poem-title text-lg font-bold transition-colors">
                                   {dbPoem.title}
                                 </h3>
                                 {hasIncomplete && (

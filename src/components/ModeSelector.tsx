@@ -64,7 +64,9 @@ export default function ModeSelector({
               )}
             </Button>
           </div>
-          <h1 className="text-xl font-bold leading-tight">{poemTitle}</h1>
+          <h1 className="poem-title text-xl font-bold leading-tight">
+            {poemTitle}
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Choisissez votre mode d'entraînement
           </p>
