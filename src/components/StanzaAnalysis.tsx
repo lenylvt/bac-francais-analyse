@@ -57,6 +57,19 @@ interface WordData {
   uniqueId: string;
 }
 
+type AnnotationType =
+  | "draft"
+  | "important"
+  | "underline"
+  | "highlight"
+  | "question";
+
+interface Annotation {
+  wordId: string;
+  type: AnnotationType;
+  color?: string;
+}
+
 interface SavedAnalysis {
   selectedWords: string[];
   analysis: string;
@@ -98,6 +111,12 @@ export default function StanzaAnalysis({
   const [isResizing, setIsResizing] = useState(false);
   const [textSize, setTextSize] = useState<"small" | "medium" | "large">(
     "small",
+  );
+  const [annotations, setAnnotations] = useState<Map<string, Annotation>>(
+    new Map(),
+  );
+  const [annotationMode, setAnnotationMode] = useState<AnnotationType | null>(
+    null,
   );
 
   const isComplete = mode === "complete";
@@ -255,22 +274,47 @@ export default function StanzaAnalysis({
     });
   });
 
-  const handleWordMouseDown = useCallback((uniqueId: string) => {
-    setIsDragging(true);
-    dragStartWordId.current = uniqueId;
-    setSelectedWordIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(uniqueId)) {
-        newSet.delete(uniqueId);
-      } else {
-        newSet.add(uniqueId);
+  const handleWordMouseDown = useCallback(
+    (uniqueId: string) => {
+      // Si mode annotation, appliquer l'annotation
+      if (annotationMode) {
+        setAnnotations((prev) => {
+          const newMap = new Map(prev);
+          if (
+            newMap.has(uniqueId) &&
+            newMap.get(uniqueId)?.type === annotationMode
+          ) {
+            // Retirer l'annotation si même type
+            newMap.delete(uniqueId);
+          } else {
+            // Ajouter/changer l'annotation
+            newMap.set(uniqueId, { wordId: uniqueId, type: annotationMode });
+          }
+          return newMap;
+        });
+        return;
       }
-      return newSet;
-    });
-  }, []);
+
+      // Sinon, sélection normale
+      setIsDragging(true);
+      dragStartWordId.current = uniqueId;
+      setSelectedWordIds((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(uniqueId)) {
+          newSet.delete(uniqueId);
+        } else {
+          newSet.add(uniqueId);
+        }
+        return newSet;
+      });
+    },
+    [annotationMode],
+  );
 
   const handleWordMouseEnter = useCallback(
     (uniqueId: string) => {
+      if (annotationMode) return; // Pas de drag en mode annotation
+
       if (isDragging && dragStartWordId.current !== uniqueId) {
         setSelectedWordIds((prev) => {
           const newSet = new Set(prev);
@@ -279,13 +323,13 @@ export default function StanzaAnalysis({
         });
       }
     },
-    [isDragging],
+    [isDragging, annotationMode],
   );
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = () => {
     setIsDragging(false);
     dragStartWordId.current = null;
-  }, []);
+  };
 
   useEffect(() => {
     document.addEventListener("mouseup", handleMouseUp);
@@ -300,7 +344,53 @@ export default function StanzaAnalysis({
     });
   };
 
-  const clearAll = () => setSelectedWordIds(new Set());
+  const clearAll = () => {
+    setSelectedWordIds(new Set());
+    setAnnotations(new Map());
+  };
+
+  const getAnnotationStyle = (wordId: string, isSelected: boolean) => {
+    const annotation = annotations.get(wordId);
+    if (!annotation) {
+      return isSelected
+        ? "bg-black dark:bg-white text-white dark:text-black scale-[1.02]"
+        : "hover:bg-gray-100 dark:hover:bg-gray-800";
+    }
+
+    const baseStyle = isSelected ? "scale-[1.02] " : "";
+
+    switch (annotation.type) {
+      case "draft":
+        return (
+          baseStyle +
+          "bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100 italic"
+        );
+      case "important":
+        return (
+          baseStyle +
+          "bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100 font-bold"
+        );
+      case "underline":
+        return (
+          baseStyle +
+          "underline decoration-2 decoration-blue-500 underline-offset-2"
+        );
+      case "highlight":
+        return (
+          baseStyle +
+          "bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-100"
+        );
+      case "question":
+        return (
+          baseStyle +
+          "bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100"
+        );
+      default:
+        return isSelected
+          ? "bg-black dark:bg-white text-white dark:text-black scale-[1.02]"
+          : "hover:bg-gray-100 dark:hover:bg-gray-800";
+    }
+  };
 
   const handleSaveAnalysis = async () => {
     if (!analysis.trim()) return;
@@ -504,11 +594,7 @@ export default function StanzaAnalysis({
                   className={`
                     inline-flex items-baseline px-0.5 -mx-0.5 rounded
                     transition-all duration-150 cursor-pointer select-none
-                    ${
-                      isSelected(wordData.uniqueId)
-                        ? "bg-black dark:bg-white text-white dark:text-black scale-[1.02]"
-                        : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                    }
+                    ${getAnnotationStyle(wordData.uniqueId, isSelected(wordData.uniqueId))}
                   `}
                 >
                   {wordData.prefix && (
@@ -559,6 +645,73 @@ export default function StanzaAnalysis({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Annotation toolbar */}
+            <div className="flex items-center gap-1 border rounded-md p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setAnnotationMode(annotationMode === "draft" ? null : "draft")
+                }
+                className={`h-6 px-2 text-xs ${annotationMode === "draft" ? "bg-yellow-200 dark:bg-yellow-800" : ""}`}
+                title="Brouillon"
+              >
+                📝
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setAnnotationMode(
+                    annotationMode === "important" ? null : "important",
+                  )
+                }
+                className={`h-6 px-2 text-xs ${annotationMode === "important" ? "bg-red-200 dark:bg-red-900" : ""}`}
+                title="Important"
+              >
+                ❗
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setAnnotationMode(
+                    annotationMode === "underline" ? null : "underline",
+                  )
+                }
+                className={`h-6 px-2 text-xs ${annotationMode === "underline" ? "bg-blue-100 dark:bg-blue-900" : ""}`}
+                title="Souligner"
+              >
+                <span className="underline">U</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setAnnotationMode(
+                    annotationMode === "highlight" ? null : "highlight",
+                  )
+                }
+                className={`h-6 px-2 text-xs ${annotationMode === "highlight" ? "bg-green-200 dark:bg-green-800" : ""}`}
+                title="Surligner"
+              >
+                🖍️
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setAnnotationMode(
+                    annotationMode === "question" ? null : "question",
+                  )
+                }
+                className={`h-6 px-2 text-xs ${annotationMode === "question" ? "bg-purple-200 dark:bg-purple-800" : ""}`}
+                title="Question"
+              >
+                ❓
+              </Button>
+            </div>
+
             {/* Text size selector */}
             <div className="flex items-center gap-1 border rounded-md p-1">
               <Button
@@ -666,6 +819,27 @@ export default function StanzaAnalysis({
               style={{ width: `${sidebarWidth}px` }}
             >
               <div className="flex-1 flex flex-col p-6 gap-4 min-h-0">
+                {/* Annotation info */}
+                {annotationMode && (
+                  <div className="bg-card rounded-lg border p-3 flex-shrink-0">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                      Mode annotation :{" "}
+                      {annotationMode === "draft"
+                        ? "📝 Brouillon"
+                        : annotationMode === "important"
+                          ? "❗ Important"
+                          : annotationMode === "underline"
+                            ? "Souligné"
+                            : annotationMode === "highlight"
+                              ? "🖍️ Surligné"
+                              : "❓ Question"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Cliquez sur les mots pour les annoter
+                    </p>
+                  </div>
+                )}
+
                 {/* Selection badge */}
                 {!isGeneralAnalysis && selectedWordIds.size > 0 && (
                   <div className="bg-card rounded-lg border p-4 flex-shrink-0">
