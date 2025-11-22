@@ -2,7 +2,7 @@ import type { Poem, UserAnswer, AIEvaluation } from "@/types";
 import { apiCache } from "@/utils/cache";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "x-ai/grok-4.1-fast:free";
+const MODEL = "tngtech/deepseek-r1t-chimera:free";
 
 interface OpenRouterMessage {
   role: "system" | "user" | "assistant";

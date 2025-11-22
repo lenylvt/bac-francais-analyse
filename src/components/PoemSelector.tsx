@@ -26,7 +26,7 @@ import {
   Plus,
   FileText,
 } from "lucide-react";
-import { logout, getCurrentUser } from "@/lib/appwrite/auth";
+import { logout, getCurrentUser, isAdmin } from "@/lib/appwrite/auth";
 import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
 import { getAllPoems, type PoemDocument } from "@/lib/appwrite/poems";
 import { useTheme } from "@/hooks/useTheme";
@@ -51,6 +51,7 @@ export default function PoemSelector({
     averageScore: 0,
   });
   const [userEmail, setUserEmail] = useState("");
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [incompletePoems, setIncompletePoems] = useState<Set<string>>(
     new Set(),
@@ -78,6 +79,8 @@ export default function PoemSelector({
   const loadUserData = async () => {
     try {
       const user = await getCurrentUser();
+      const adminStatus = await isAdmin();
+      setIsUserAdmin(adminStatus);
       if (user) {
         setUserEmail(user.email);
         const userStats = await getUserStats(user.$id);
@@ -209,14 +212,34 @@ export default function PoemSelector({
                 Sélectionnez un poème pour commencer votre analyse
               </p>
             </div>
-            <Button
-              onClick={() => setShowCommunityDialog(true)}
-              className="gap-2 shrink-0"
-              variant="outline"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Demande communautaire</span>
-            </Button>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                onClick={() => setShowCommunityDialog(true)}
+                className="gap-2"
+                variant="outline"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Demande communautaire</span>
+              </Button>
+              {isUserAdmin && (
+                <Button
+                  onClick={() => {
+                    const urls = prompt(
+                      "Entrez les URLs séparées par des virgules:",
+                    );
+                    if (urls) {
+                      // TODO: Implement multi-import logic
+                      alert("Multi-import en cours de développement");
+                    }
+                  }}
+                  className="gap-2"
+                  variant="default"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden sm:inline">Multi Import</span>
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Search & Filters */}

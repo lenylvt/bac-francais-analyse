@@ -6,6 +6,7 @@ export interface AuthUser {
   email: string;
   name: string;
   phone: string;
+  labels?: string[];
 }
 
 /**
@@ -56,6 +57,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       email: user.email,
       name: user.name,
       phone: user.phone,
+      labels: user.labels || [],
     };
   } catch (error: any) {
     return null;
@@ -80,6 +82,18 @@ export async function isAuthenticated(): Promise<boolean> {
   try {
     await account.get();
     return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if user has admin label
+ */
+export async function isAdmin(): Promise<boolean> {
+  try {
+    const user = await getCurrentUser();
+    return user?.labels?.includes("admin") || false;
   } catch {
     return false;
   }

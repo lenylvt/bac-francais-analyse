@@ -1,7 +1,8 @@
 import { createPoem } from "./poems";
 
-const FIRECRAWL_API_URL = "https://api.firecrawl.dev/v1/scrape";
+const FIRECRAWL_API_URL = "https://api.firecrawl.dev/v2/scrape";
 const FIRECRAWL_API_KEY = import.meta.env.VITE_FIRECRAWL_API_KEY;
+const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 
 export interface ScrapeResult {
   author: string;
@@ -10,66 +11,12 @@ export interface ScrapeResult {
   analyses: string;
 }
 
-interface FirecrawlExtractData {
-  isNotGood?: boolean;
-  author?: string;
-  text_name?: string;
-  text_content?: string;
-  thematic_analysis?: string;
-  stylistic_analysis?: string;
-  structural_analysis?: string;
-  contextual_analysis?: string;
-  line_by_line_commentary?: string;
-  conclusion?: string;
-  critical_perspectives?: string;
-  vocabulary_notes?: string;
-}
-
 /**
- * Pre-check if the page contains valid literary analysis markers
- */
-async function validatePageContent(url: string): Promise<void> {
-  const response = await fetch(FIRECRAWL_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      url,
-      formats: ["markdown"],
-      onlyMainContent: true,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Impossible de vérifier le contenu de la page");
-  }
-
-  const result = await response.json();
-  const content = result.data?.markdown || "";
-
-  const hasValidMarkers =
-    content.includes("Texte étudié") ||
-    content.includes("Poème étudié") ||
-    content.includes("Poème analysé") ||
-    content.includes("Texte analysé") ||
-    content.includes("Extrait analysé") ||
-    content.includes("Extrait étudié");
-
-  if (!hasValidMarkers) {
-    throw new Error("Cette page ne contient pas d'analyse littéraire");
-  }
-}
-
-/**
- * Scrape a poem analysis from commentairecompose.fr using Firecrawl
+ * Scrape a poem analysis from a URL using Firecrawl + OpenRouter
  */
 export async function scrapePoem(url: string): Promise<ScrapeResult> {
-  // Pre-validation
-  await validatePageContent(url);
-
-  const response = await fetch(FIRECRAWL_API_URL, {
+  // Scrape with Firecrawl
+  const firecrawlResponse = await fetch(FIRECRAWL_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
@@ -77,177 +24,98 @@ export async function scrapePoem(url: string): Promise<ScrapeResult> {
     },
     body: JSON.stringify({
       url,
-      formats: ["extract"],
       onlyMainContent: true,
       maxAge: 172800000,
       timeout: 360000,
-      extract: {
-        schema: {
-          type: "object",
-          properties: {
-            isNotGood: {
-              type: "boolean",
-              description:
-                "Set to TRUE if this page is NOT a proper literary analysis with a studied text/poem section. Set to TRUE if you cannot find clear literary commentary and analysis.",
-            },
-            author: {
-              type: "string",
-              description: "The author's full name",
-            },
-            text_name: {
-              type: "string",
-              description: "The complete title of the literary work",
-            },
-            text_content: {
-              type: "string",
-              description:
-                "The entire original text, word for word. IMPORTANT: Use \\n (backslash-n) ONLY to separate stanzas/strophes, NOT individual verses. Keep verses on the same line within each stanza. Only use \\n between different stanzas.",
-            },
-            thematic_analysis: {
-              type: "string",
-              description:
-                "Deep exploration of main themes, symbols, motifs, and underlying meanings",
-            },
-            stylistic_analysis: {
-              type: "string",
-              description:
-                "Literary devices, figures of speech, rhythm, metrics, sound patterns, syntax, and writing style with specific examples",
-            },
-            structural_analysis: {
-              type: "string",
-              description:
-                "Text structure, composition, stanza organization, verse patterns, progression, and internal coherence",
-            },
-            contextual_analysis: {
-              type: "string",
-              description:
-                "Historical period, author's biography, literary movement, cultural context, and publication circumstances",
-            },
-            line_by_line_commentary: {
-              type: "string",
-              description:
-                "Detailed verse-by-verse or stanza-by-stanza interpretation with explicit references to specific lines",
-            },
-            conclusion: {
-              type: "string",
-              description:
-                "Final synthesis connecting all analytical elements and overall interpretation of the work's significance",
-            },
-            critical_perspectives: {
-              type: "string",
-              description:
-                "Multiple critical interpretations, scholarly debates, or different analytical approaches",
-            },
-            vocabulary_notes: {
-              type: "string",
-              description:
-                "Definitions of difficult, archaic, or culturally specific words with etymological notes when relevant",
-            },
-          },
-          required: [],
-        },
-        prompt: `CRITICAL VALIDATION FIRST:
-- If this page does NOT contain a proper literary analysis with a studied text/poem, set "isNotGood" to true and STOP.
-- Only proceed with extraction if you find a clear "Texte étudié" or "Poème étudié" section with actual literary commentary.
-
-If this IS a valid literary analysis page, set "isNotGood" to false and extract:
-
-**Essential Elements:**
-- Complete original text with exact formatting and line breaks: The entire original text, word for word. IMPORTANT: Use \\n (backslash-n) for line breaks. Each verse or line must end with \\n. Do NOT use actual line breaks, use the literal characters backslash-n.
-- Full author name and precise title of the work
-
-**Core Analysis (extract every detail available):**
-- Thematic analysis: identify ALL themes, symbols, recurring motifs, and deeper meanings
-- Stylistic analysis: catalog EVERY literary device, figure of speech, sound effect, rhythm pattern, and syntax choice with textual evidence
-- Structural analysis: map the entire composition, stanza arrangement, verse progression, and organizational logic
-- Historical & biographical context: period, movement, author's life events relevant to the work
-
-**Detailed Commentary:**
-- Line-by-line or verse-by-verse explanation referencing specific passages
-- Multiple critical interpretations if presented
-- Vocabulary explanations for challenging terms
-
-**Synthesis:**
-- Concluding interpretation tying all elements together
-
-Extract EVERY paragraph, explanation, commentary, and analytical note present on the page. Prioritize completeness and depth over brevity.`,
-        agent: { model: "FIRE-1" },
-      },
+      parsers: [],
+      formats: ["markdown"],
     }),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
-    throw new Error(`Firecrawl API error (${response.status}): ${errorText}`);
+  if (!firecrawlResponse.ok) {
+    throw new Error("Impossible de charger la page avec Firecrawl");
   }
 
-  const result = await response.json();
+  const firecrawlResult = await firecrawlResponse.json();
+  const markdown = firecrawlResult.data?.markdown || "";
 
-  if (!result.success) {
-    throw new Error(result.error || "Failed to scrape poem");
+  if (!markdown) {
+    throw new Error("Aucun contenu trouvé");
   }
 
-  const data = result.data?.extract as FirecrawlExtractData | undefined;
+  // Use OpenRouter to extract and analyze
+  const openrouterResponse = await fetch(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "tngtech/deepseek-r1t-chimera:free",
+        messages: [
+          {
+            role: "user",
+            content: `Analyse ce contenu markdown d'une page d'analyse littéraire.
+            
+            ⚠️ CRITIQUE : Je veux l'INTÉGRALITÉ du contenu
+            - TOUT le texte du poème sans exception
+            - TOUTE l'analyse littéraire présente dans le markdown
+            - Ne résume RIEN, ne coupe RIEN, ne raccourcis RIEN
+            
+            Retourne UNIQUEMENT un JSON valide avec cette structure :
+            
+            {
+              "author": "Nom de l'auteur",
+              "title": "Titre du poème/texte",
+              "fullText": "Texte COMPLET du poème avec ||| entre chaque vers et ### entre les strophes",
+              "analyses": "ANALYSE COMPLÈTE en markdown - inclut TOUT ce qui est écrit dans le markdown original : figures de style, thèmes, structure, versification, syntaxe, registres, etc. Utilise **gras** et *italique* pour la mise en forme. PAS de titres de sections artificiels (pas de '## Analyse stylistique'), juste le contenu d'analyse tel quel, de manière fluide et naturelle"
+            }
+            
+            Instructions de formatage :
+            - fullText : ||| = séparateur de vers, ### = séparateur de strophes
+            - analyses : Copie TOUTE l'analyse présente, sans sections artificielles, juste le texte d'analyse brut
+            
+            Contenu markdown :
+${markdown}`,
+          },
+        ],
+      }),
+    },
+  );
 
-  // Check if AI determined this is not a valid analysis
-  if (data?.isNotGood === true) {
-    throw new Error(
-      "Cette page n'est pas une analyse littéraire valide selon l'IA",
-    );
+  if (!openrouterResponse.ok) {
+    throw new Error("Erreur OpenRouter");
   }
 
-  if (!data?.author || !data?.text_name || !data?.text_content) {
-    throw new Error(
-      "Données incomplètes : auteur, titre ou texte manquant dans l'extraction",
-    );
+  const openrouterResult = await openrouterResponse.json();
+  const content = openrouterResult.choices[0]?.message?.content || "";
+
+  // Extract JSON from response
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("Impossible d'extraire les données");
   }
 
-  // Build comprehensive analysis with clear sections
-  const analysisSections = [
-    {
-      title: "Analyse thématique",
-      content: data.thematic_analysis,
-    },
-    {
-      title: "Analyse stylistique",
-      content: data.stylistic_analysis,
-    },
-    {
-      title: "Analyse structurelle",
-      content: data.structural_analysis,
-    },
-    {
-      title: "Contexte historique et biographique",
-      content: data.contextual_analysis,
-    },
-    {
-      title: "Commentaire détaillé",
-      content: data.line_by_line_commentary,
-    },
-    {
-      title: "Perspectives critiques",
-      content: data.critical_perspectives,
-    },
-    {
-      title: "Notes de vocabulaire",
-      content: data.vocabulary_notes,
-    },
-    {
-      title: "Conclusion",
-      content: data.conclusion,
-    },
-  ];
+  const data = JSON.parse(jsonMatch[0]);
 
-  const fullAnalysis = analysisSections
-    .filter((section) => section.content?.trim())
-    .map((section) => `## ${section.title}\n\n${section.content}`)
+  if (!data.author || !data.title || !data.fullText) {
+    throw new Error("Données incomplètes");
+  }
+
+  // Convert separators to proper format
+  const finalText = data.fullText
+    .split("###")
+    .map((stanza: string) => stanza.split("|||").join("\n").trim())
+    .filter((stanza: string) => stanza)
     .join("\n\n");
 
   return {
     author: data.author,
-    title: data.text_name,
-    fullText: data.text_content.split("\\n").join("\n"),
-    analyses: fullAnalysis || "Aucune analyse disponible",
+    title: data.title,
+    fullText: finalText,
+    analyses: data.analyses || "Aucune analyse disponible",
   };
 }
 
