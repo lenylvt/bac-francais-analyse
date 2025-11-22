@@ -96,8 +96,12 @@ export default function StanzaAnalysis({
   );
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
+  const [textSize, setTextSize] = useState<"small" | "medium" | "large">(
+    "small",
+  );
 
   const isComplete = mode === "complete";
+  const isGeneralAnalysis = selectedWordIds.size === 0;
 
   // Load existing analyses from DB and clean completed ones
   const loadAnalyses = useCallback(async () => {
@@ -523,7 +527,7 @@ export default function StanzaAnalysis({
     );
   };
 
-  const canSave = selectedWordIds.size > 0 && analysis.trim().length > 0;
+  const canSave = analysis.trim().length > 0;
   const selectedWordsData = Array.from(selectedWordIds).map((id) => {
     return allWords.find((w) => w.uniqueId === id);
   });
@@ -555,6 +559,37 @@ export default function StanzaAnalysis({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Text size selector */}
+            <div className="flex items-center gap-1 border rounded-md p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTextSize("small")}
+                className={`h-6 w-6 p-0 text-xs ${textSize === "small" ? "bg-muted" : ""}`}
+                title="Petit"
+              >
+                A
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTextSize("medium")}
+                className={`h-6 w-6 p-0 text-base ${textSize === "medium" ? "bg-muted" : ""}`}
+                title="Moyen"
+              >
+                A
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTextSize("large")}
+                className={`h-6 w-6 p-0 text-xl ${textSize === "large" ? "bg-muted" : ""}`}
+                title="Grand"
+              >
+                A
+              </Button>
+            </div>
+
             {/* Theme toggle */}
             <Button
               variant="ghost"
@@ -599,7 +634,15 @@ export default function StanzaAnalysis({
               <ScrollArea className="h-full">
                 <div className="p-8">
                   <div className="max-w-3xl">
-                    <div className="text-base leading-relaxed">
+                    <div
+                      className={`leading-relaxed ${
+                        textSize === "small"
+                          ? "text-base"
+                          : textSize === "large"
+                            ? "text-xl"
+                            : "text-lg"
+                      }`}
+                    >
                       {stanzasToShow.map((s, idx) => renderStanza(s, idx + 1))}
                     </div>
                   </div>
@@ -624,7 +667,7 @@ export default function StanzaAnalysis({
             >
               <div className="flex-1 flex flex-col p-6 gap-4 min-h-0">
                 {/* Selection badge */}
-                {selectedWordIds.size > 0 && (
+                {!isGeneralAnalysis && selectedWordIds.size > 0 && (
                   <div className="bg-card rounded-lg border p-4 flex-shrink-0">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-medium text-muted-foreground">
@@ -666,12 +709,18 @@ export default function StanzaAnalysis({
                 {/* Analysis textarea - flexible height */}
                 <div className="bg-card rounded-lg border p-4 flex-1 flex flex-col min-h-0">
                   <label className="text-xs font-medium text-muted-foreground mb-2 block flex-shrink-0">
-                    Votre analyse
+                    {isGeneralAnalysis
+                      ? "Votre analyse générale"
+                      : "Votre analyse"}
                   </label>
                   <textarea
                     value={analysis}
                     onChange={(e) => setAnalysis(e.target.value)}
-                    placeholder="Expliquez le sens et l'effet des mots sélectionnés..."
+                    placeholder={
+                      isGeneralAnalysis
+                        ? "Faites une analyse générale du texte (thème, structure, style, figures de style, etc.)"
+                        : "Expliquez le sens et l'effet des mots sélectionnés..."
+                    }
                     className="w-full flex-1 px-3 py-2 text-sm bg-background border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-ring min-h-0"
                     disabled={isSaving}
                   />
@@ -739,12 +788,20 @@ export default function StanzaAnalysis({
           <div className="md:hidden h-full flex flex-col">
             <ScrollArea className="flex-1">
               <div className="p-6">
-                <div className="text-base leading-relaxed mb-6">
+                <div
+                  className={`leading-relaxed mb-6 ${
+                    textSize === "small"
+                      ? "text-base"
+                      : textSize === "large"
+                        ? "text-xl"
+                        : "text-lg"
+                  }`}
+                >
                   {stanzasToShow.map((s, idx) => renderStanza(s, idx + 1))}
                 </div>
 
                 {/* Selection */}
-                {selectedWordIds.size > 0 && (
+                {!isGeneralAnalysis && selectedWordIds.size > 0 && (
                   <div className="bg-card rounded-lg border p-4 mb-4">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-medium">
@@ -785,12 +842,18 @@ export default function StanzaAnalysis({
                 {/* Analysis */}
                 <div className="mb-4">
                   <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                    Votre analyse
+                    {isGeneralAnalysis
+                      ? "Votre analyse générale"
+                      : "Votre analyse"}
                   </label>
                   <textarea
                     value={analysis}
                     onChange={(e) => setAnalysis(e.target.value)}
-                    placeholder="Expliquez le sens et l'effet des mots sélectionnés..."
+                    placeholder={
+                      isGeneralAnalysis
+                        ? "Faites une analyse générale du texte (thème, structure, style, figures de style, etc.)"
+                        : "Expliquez le sens et l'effet des mots sélectionnés..."
+                    }
                     className="w-full h-40 px-3 py-2 text-sm bg-background border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                     disabled={isSaving}
                   />
@@ -939,6 +1002,7 @@ export default function StanzaAnalysis({
           <div className="max-h-[500px] overflow-y-auto scrollbar-hide pr-4">
             <div className="space-y-4">
               {savedAnalyses.map((saved, index) => {
+                const isGeneral = saved.selectedWords.length === 0;
                 const displayWords = saved.selectedWords.map((uniqueId) => {
                   const wordData = allWords.find(
                     (w) => w.uniqueId === uniqueId,
@@ -957,15 +1021,24 @@ export default function StanzaAnalysis({
                           Analyse {index + 1}
                         </p>
                         <div className="flex flex-wrap gap-1.5 mb-3">
-                          {displayWords.map((word, i) => (
+                          {isGeneral ? (
                             <Badge
-                              key={i}
-                              variant="secondary"
-                              className="text-xs"
+                              variant="default"
+                              className="text-xs bg-purple-600 hover:bg-purple-700"
                             >
-                              {word}
+                              Analyse générale
                             </Badge>
-                          ))}
+                          ) : (
+                            displayWords.map((word, i) => (
+                              <Badge
+                                key={i}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {word}
+                              </Badge>
+                            ))
+                          )}
                         </div>
                         <p className="text-sm">{saved.analysis}</p>
                       </div>
