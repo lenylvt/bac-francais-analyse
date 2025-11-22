@@ -57,7 +57,7 @@ export async function createResult(
       ...document,
       answers: JSON.parse(document.answers as string),
       evaluations: JSON.parse(document.evaluations as string),
-    } as ResultDocument;
+    } as unknown as ResultDocument;
   } catch (error: any) {
     console.error("Error creating result:", error);
     throw new Error(`Erreur lors de la sauvegarde: ${error.message}`);
@@ -74,14 +74,18 @@ export async function getUserResults(
     const response = await databases.listDocuments(
       appwriteConfig.databaseId,
       appwriteConfig.resultsCollectionId,
-      [Query.equal("userId", userId), Query.orderDesc("$createdAt"), Query.limit(100)],
+      [
+        Query.equal("userId", userId),
+        Query.orderDesc("$createdAt"),
+        Query.limit(100),
+      ],
     );
 
     return response.documents.map((doc) => ({
       ...doc,
       answers: JSON.parse(doc.answers as string),
       evaluations: JSON.parse(doc.evaluations as string),
-    })) as ResultDocument[];
+    })) as unknown as ResultDocument[];
   } catch (error) {
     console.error("Error getting results:", error);
     throw new Error("Erreur lors de la récupération des résultats");
@@ -91,9 +95,7 @@ export async function getUserResults(
 /**
  * Get result by ID
  */
-export async function getResultById(
-  resultId: string,
-): Promise<ResultDocument> {
+export async function getResultById(resultId: string): Promise<ResultDocument> {
   try {
     const document = await databases.getDocument(
       appwriteConfig.databaseId,
@@ -105,7 +107,7 @@ export async function getResultById(
       ...document,
       answers: JSON.parse(document.answers as string),
       evaluations: JSON.parse(document.evaluations as string),
-    } as ResultDocument;
+    } as unknown as ResultDocument;
   } catch (error) {
     console.error("Error getting result:", error);
     throw new Error("Erreur lors de la récupération du résultat");

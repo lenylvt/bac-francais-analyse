@@ -28,7 +28,7 @@ export default function CommunityRequestDialog({
 }: CommunityRequestDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
+  const [, setSelectedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingStep, setLoadingStep] = useState<string>("");
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());

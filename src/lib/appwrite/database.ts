@@ -55,7 +55,7 @@ export async function createAnalysis(
         completed: data.completed || false,
       },
     );
-    return document as SavedAnalysisDocument;
+    return document as unknown as SavedAnalysisDocument;
   } catch (error: any) {
     throw new Error(
       `Erreur lors de la sauvegarde: ${error.message || "Erreur inconnue"}`,
@@ -77,7 +77,7 @@ export async function updateAnalysis(
       analysisId,
       data,
     );
-    return document as SavedAnalysisDocument;
+    return document as unknown as SavedAnalysisDocument;
   } catch (error: any) {
     throw new Error(
       `Erreur lors de la mise à jour: ${error.message || "Erreur inconnue"}`,
@@ -102,7 +102,7 @@ export async function getUserAnalysesForPoem(
         Query.orderDesc("$createdAt"),
       ],
     );
-    return response.documents as SavedAnalysisDocument[];
+    return response.documents as unknown as SavedAnalysisDocument[];
   } catch (error: any) {
     throw new Error(
       `Erreur lors de la récupération: ${error.message || "Erreur inconnue"}`,
@@ -122,7 +122,7 @@ export async function getUserAnalyses(
       appwriteConfig.analysesCollectionId,
       [Query.equal("userId", userId), Query.orderDesc("$createdAt")],
     );
-    return response.documents as SavedAnalysisDocument[];
+    return response.documents as unknown as SavedAnalysisDocument[];
   } catch (error) {
     console.error("Error getting user analyses:", error);
     throw new Error("Erreur lors de la récupération des analyses.");
@@ -165,7 +165,7 @@ export async function getIncompleteAnalyses(
     );
 
     console.log(`✅ Found ${response.documents.length} incomplete analyses`);
-    return response.documents as SavedAnalysisDocument[];
+    return response.documents as unknown as SavedAnalysisDocument[];
   } catch (error: any) {
     console.error("❌ Error getting incomplete analyses:", error);
     return [];

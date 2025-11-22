@@ -20,10 +20,10 @@ function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [screen, setScreen] = useState<Screen>("selector");
-  const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
+  const [, setSelectedPoemId] = useState<string | null>(null);
   const [selectedPoem, setSelectedPoem] = useState<PoemDocument | null>(null);
   const [mode, setMode] = useState<Mode>("complete");
-  const [currentStanzaIndex, setCurrentStanzaIndex] = useState(0);
+  const [, setCurrentStanzaIndex] = useState(0);
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
   const [evaluations, setEvaluations] = useState<AIEvaluation[]>([]);
   const [averageScore, setAverageScore] = useState(0);
@@ -58,7 +58,11 @@ function App() {
       year: 0,
       fullText: selectedPoem.fullText.split("\n"),
       stanzas: stanzas,
-      linearAnalysis: selectedPoem.linearAnalysis || [],
+      linearAnalysis: selectedPoem.linearAnalysis
+        ? typeof selectedPoem.linearAnalysis === "string"
+          ? JSON.parse(selectedPoem.linearAnalysis)
+          : selectedPoem.linearAnalysis
+        : [],
     };
   }, [selectedPoem]);
 
@@ -124,7 +128,11 @@ function App() {
         year: 0,
         fullText: selectedPoem.fullText.split("\n"),
         stanzas: stanzas,
-        linearAnalysis: selectedPoem.linearAnalysis || [],
+        linearAnalysis: selectedPoem.linearAnalysis
+          ? typeof selectedPoem.linearAnalysis === "string"
+            ? JSON.parse(selectedPoem.linearAnalysis)
+            : selectedPoem.linearAnalysis
+          : [],
       };
 
       const evaluation = await evaluateAnswer(poemForAI, answer);
@@ -141,6 +149,9 @@ function App() {
 
       // Save result to database
       try {
+        if (!user) {
+          throw new Error("User not authenticated");
+        }
         await createResult({
           userId: user.$id,
           poemId: selectedPoem.$id,

@@ -9,6 +9,7 @@ export interface PoemDocument {
   author: string;
   fullText: string;
   analyses?: string;
+  linearAnalysis?: string;
 }
 
 export interface CreatePoemData {
@@ -30,7 +31,7 @@ export async function getAllPoems(): Promise<PoemDocument[]> {
       poemsCollectionId,
       [Query.orderAsc("title"), Query.limit(100)],
     );
-    return response.documents as PoemDocument[];
+    return response.documents as unknown as PoemDocument[];
   } catch (error: any) {
     return [];
   }
@@ -48,7 +49,7 @@ export async function getPoemById(
       poemsCollectionId,
       poemId,
     );
-    return document as PoemDocument;
+    return document as unknown as PoemDocument;
   } catch (error: any) {
     return null;
   }
@@ -65,7 +66,7 @@ export async function createPoem(data: CreatePoemData): Promise<PoemDocument> {
       ID.unique(),
       data,
     );
-    return document as PoemDocument;
+    return document as unknown as PoemDocument;
   } catch (error: any) {
     throw new Error(`Erreur lors de la création: ${error.message}`);
   }
@@ -85,7 +86,7 @@ export async function updatePoem(
       poemId,
       data,
     );
-    return document as PoemDocument;
+    return document as unknown as PoemDocument;
   } catch (error: any) {
     throw new Error(`Erreur lors de la mise à jour: ${error.message}`);
   }
@@ -116,7 +117,7 @@ export async function searchPoems(query: string): Promise<PoemDocument[]> {
       poemsCollectionId,
       [Query.search("title", query), Query.limit(50)],
     );
-    return response.documents as PoemDocument[];
+    return response.documents as unknown as PoemDocument[];
   } catch (error: any) {
     return [];
   }
