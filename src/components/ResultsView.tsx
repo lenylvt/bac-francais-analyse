@@ -168,17 +168,26 @@ export default function ResultsView({
                         </span>
                         Analyse {index + 1}
                       </CardTitle>
-                      {/* Mots sélectionnés */}
+                      {/* Mots sélectionnés ou badge général */}
                       <div className="flex flex-wrap gap-1.5 mb-2">
-                        {answer.selectedWords.map((word, i) => (
+                        {answer.selectedWords.length === 0 ? (
                           <Badge
-                            key={i}
-                            variant="secondary"
-                            className="text-xs"
+                            variant="default"
+                            className="text-xs bg-purple-600 hover:bg-purple-700"
                           >
-                            {word}
+                            Analyse générale
                           </Badge>
-                        ))}
+                        ) : (
+                          answer.selectedWords.map((word, i) => (
+                            <Badge
+                              key={i}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {word}
+                            </Badge>
+                          ))
+                        )}
                       </div>
                       {/* Analyse élève condensée */}
                       {!isExpanded && (
