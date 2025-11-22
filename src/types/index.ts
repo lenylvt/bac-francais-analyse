@@ -1,3 +1,5 @@
+// src/types/index.ts
+
 export interface Keyword {
   word: string;
   explanation: string;
@@ -23,6 +25,7 @@ export interface Poem {
   fullText: string[];
   stanzas: Stanza[];
   linearAnalysis: StanzaAnalysis[];
+  analyses?: string;
 }
 
 export interface UserAnswer {
@@ -41,11 +44,25 @@ export interface AIEvaluation {
 
 export type Mode = "complete" | "quick";
 
-export interface QuizState {
-  poemId: string;
-  mode: Mode;
-  currentStanzaIndex: number;
-  answers: UserAnswer[];
-  score: number | null;
-  evaluations: AIEvaluation[];
+export interface AnalysisSubmission {
+  analysisNumber: number;
+  selectedWords: string[];
+  userAnalysis: string;
+}
+
+export interface AnalysisEvaluation {
+  analysisNumber: number;
+  selectedWords: string[];
+  userAnalysis: string;
+  score: number;
+  feedback: string;
+  strengths: string[];
+  missedPoints: string[];
+}
+
+export interface MultipleAnalysesResult {
+  evaluations: AnalysisEvaluation[];
+  averageScore: number;
+  globalFeedback: string;
+  debugPrompt?: string;
 }

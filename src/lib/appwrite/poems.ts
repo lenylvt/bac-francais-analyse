@@ -31,7 +31,15 @@ export async function getAllPoems(): Promise<PoemDocument[]> {
       poemsCollectionId,
       [Query.orderAsc("title"), Query.limit(100)],
     );
-    return response.documents as unknown as PoemDocument[];
+    const poems = response.documents as unknown as PoemDocument[];
+    
+    // Fork analyses → linearAnalysis pour compatibilité
+    return poems.map(poem => {
+      if (poem.analyses && !poem.linearAnalysis) {
+        poem.linearAnalysis = poem.analyses;
+      }
+      return poem;
+    });
   } catch (error: any) {
     return [];
   }
@@ -49,7 +57,14 @@ export async function getPoemById(
       poemsCollectionId,
       poemId,
     );
-    return document as unknown as PoemDocument;
+    const poem = document as unknown as PoemDocument;
+    
+    // Fork analyses → linearAnalysis pour compatibilité
+    if (poem.analyses && !poem.linearAnalysis) {
+      poem.linearAnalysis = poem.analyses;
+    }
+    
+    return poem;
   } catch (error: any) {
     return null;
   }

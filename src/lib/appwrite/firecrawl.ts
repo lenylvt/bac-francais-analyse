@@ -58,25 +58,25 @@ export async function scrapePoem(url: string): Promise<ScrapeResult> {
           {
             role: "user",
             content: `Analyse ce contenu markdown d'une page d'analyse littéraire.
-            
+
             ⚠️ CRITIQUE : Je veux l'INTÉGRALITÉ du contenu
             - TOUT le texte du poème sans exception
             - TOUTE l'analyse littéraire présente dans le markdown
             - Ne résume RIEN, ne coupe RIEN, ne raccourcis RIEN
-            
+
             Retourne UNIQUEMENT un JSON valide avec cette structure :
-            
+
             {
               "author": "Nom de l'auteur",
               "title": "Titre du poème/texte",
               "fullText": "Texte COMPLET du poème avec ||| entre chaque vers et ### entre les strophes",
               "analyses": "ANALYSE COMPLÈTE en markdown - inclut TOUT ce qui est écrit dans le markdown original : figures de style, thèmes, structure, versification, syntaxe, registres, etc. Utilise **gras** et *italique* pour la mise en forme. PAS de titres de sections artificiels (pas de '## Analyse stylistique'), juste le contenu d'analyse tel quel, de manière fluide et naturelle"
             }
-            
+
             Instructions de formatage :
             - fullText : ||| = séparateur de vers, ### = séparateur de strophes
             - analyses : Copie TOUTE l'analyse présente, sans sections artificielles, juste le texte d'analyse brut
-            
+
             Contenu markdown :
 ${markdown}`,
           },

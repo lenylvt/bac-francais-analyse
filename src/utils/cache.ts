@@ -76,7 +76,10 @@ export const apiCache = new Cache();
 
 // Cleanup expired entries every 5 minutes
 if (typeof window !== "undefined") {
-  setInterval(() => {
-    apiCache.cleanup();
-  }, 5 * 60 * 1000);
+  setInterval(
+    () => {
+      apiCache.cleanup();
+    },
+    5 * 60 * 1000,
+  );
 }

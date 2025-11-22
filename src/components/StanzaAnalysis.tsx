@@ -22,10 +22,11 @@ import {
   Moon,
   Sun,
 } from "lucide-react";
-import type { Poem, UserAnswer } from "@/types";
+import type { Poem } from "@/types";
 import {
   createAnalysis,
   updateAnalysis,
+  deleteAnalysis,
   getUserAnalysesForPoem,
   getIncompleteAnalyses,
   type SavedAnalysisDocument,
@@ -38,7 +39,9 @@ interface StanzaAnalysisProps {
   totalStanzas: number;
   mode: "complete" | "quick";
   userId: string;
-  onSubmit: (answer: UserAnswer) => void;
+  onSubmit: (
+    analyses: Array<{ selectedWords: string[]; analysis: string }>,
+  ) => void;
   onBack: () => void;
   isLoading?: boolean;
 }
@@ -57,7 +60,7 @@ interface WordData {
 interface SavedAnalysis {
   selectedWords: string[];
   analysis: string;
-  timestamp: number;
+  timestamp: number | string;
 }
 
 export default function StanzaAnalysis({
@@ -96,11 +99,20 @@ export default function StanzaAnalysis({
 
   const isComplete = mode === "complete";
 
-  // Load existing analyses from DB
+  // Load existing analyses from DB and clean completed ones
   const loadAnalyses = useCallback(async () => {
     try {
       const analyses = await getUserAnalysesForPoem(userId, poem.id);
-      setDbAnalyses(analyses);
+
+      // Delete completed analyses (they should be in results now)
+      const completedAnalyses = analyses.filter((a) => a.completed);
+      for (const completed of completedAnalyses) {
+        await deleteAnalysis(completed.$id);
+      }
+
+      // Keep only incomplete analyses
+      const incompleteAnalyses = analyses.filter((a) => !a.completed);
+      setDbAnalyses(incompleteAnalyses);
     } catch (error) {
       console.error("Error loading analyses:", error);
     }
@@ -407,40 +419,42 @@ export default function StanzaAnalysis({
     setCurrentAnalysisId(null);
   };
 
+  // Submit all analyses in ONE request
+  // Dans StanzaAnalysis.tsx, remplacer la fonction handleSubmitToAI par celle-ci :
+
   const handleSubmitToAI = async () => {
     try {
-      // Combine all saved analyses
-      const combinedWords = savedAnalyses.flatMap((a) => a.selectedWords);
-      const combinedAnalysis = savedAnalyses
-        .map((a) => a.analysis)
-        .join("\n\n");
+      // Valider qu'il y a des analyses à soumettre
+      if (savedAnalyses.length === 0) {
+        alert("Aucune analyse à soumettre");
+        return;
+      }
 
-      // Convert uniqueIds to clean words for AI
-      const cleanWords = Array.from(new Set(combinedWords))
-        .map((uniqueId) => {
-          const wordData = allWords.find((w) => w.uniqueId === uniqueId);
-          return wordData?.cleanWord || "";
-        })
-        .filter(Boolean);
+      setShowReviewDialog(false);
 
-      const answer: UserAnswer = {
-        stanzaId: stanza.id,
-        selectedWords: cleanWords,
-        analysis: combinedAnalysis,
-      };
-
-      // Mark all as completed in DB
+      // Marquer toutes les analyses comme complètes dans la DB
       for (const dbAnalysis of dbAnalyses) {
         await updateAnalysis(dbAnalysis.$id, {
           completed: true,
         });
       }
 
-      setShowReviewDialog(false);
-      onSubmit(answer);
+      // Préparer les analyses pour soumission (avec mots nettoyés)
+      const analysesToSubmit = savedAnalyses.map((analysis) => ({
+        selectedWords: analysis.selectedWords
+          .map((uniqueId) => {
+            const wordData = allWords.find((w) => w.uniqueId === uniqueId);
+            return wordData?.cleanWord || uniqueId;
+          })
+          .filter(Boolean),
+        analysis: analysis.analysis,
+      }));
+
+      // Appeler onSubmit qui gère l'évaluation multiple dans App.tsx
+      onSubmit(analysesToSubmit);
     } catch (error) {
       console.error("Error submitting to AI:", error);
-      alert("Erreur lors de la soumission");
+      alert("Erreur lors de la soumission à l'IA: " + (error as Error).message);
     }
   };
 
@@ -828,10 +842,10 @@ export default function StanzaAnalysis({
 
                       <Button
                         onClick={handleSubmitToAI}
-                        disabled={isLoading}
-                        className="w-full bg-gradient-to-r from-black to-gray-800"
+                        disabled={isLoading || isSaving}
+                        className="w-full"
                       >
-                        {isLoading ? (
+                        {isLoading || isSaving ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin mr-2" />
                             Évaluation...
@@ -905,10 +919,7 @@ export default function StanzaAnalysis({
             >
               Nouvelle analyse
             </Button>
-            <Button
-              onClick={handleResumeAnalysis}
-              className="w-full sm:w-auto bg-black hover:bg-black/90"
-            >
+            <Button onClick={handleResumeAnalysis} className="w-full sm:w-auto">
               Reprendre
             </Button>
           </DialogFooter>
@@ -993,10 +1004,10 @@ export default function StanzaAnalysis({
             {savedAnalyses.length > 0 && (
               <Button
                 onClick={handleSubmitToAI}
-                disabled={isLoading}
-                className="bg-gradient-to-r from-black to-gray-800 hover:from-gray-900 hover:to-gray-700 gap-2"
+                disabled={isLoading || isSaving}
+                className="gap-2"
               >
-                {isLoading ? (
+                {isLoading || isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Évaluation...
@@ -1004,7 +1015,15 @@ export default function StanzaAnalysis({
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    Soumettre à l'IA
+                    Soumettre à l'IA (
+                    {savedAnalyses.length +
+                      dbAnalyses.filter(
+                        (db) =>
+                          !savedAnalyses.some(
+                            (s) => String(s.timestamp) === db.$createdAt,
+                          ),
+                      ).length}
+                    )
                   </>
                 )}
               </Button>

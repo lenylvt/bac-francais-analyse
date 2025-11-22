@@ -6,7 +6,7 @@ import StanzaAnalysis from "@/components/StanzaAnalysis";
 import ResultsView from "@/components/ResultsView";
 import Progress from "@/components/Progress";
 import type { Mode, UserAnswer, AIEvaluation } from "@/types";
-import { evaluateAnswer } from "@/services/ai";
+import { evaluateMultipleAnalyses } from "@/services/ai";
 import { getCurrentUser, type AuthUser } from "@/lib/appwrite/auth";
 import { getPoemById, type PoemDocument } from "@/lib/appwrite/poems";
 import { createResult, type ResultDocument } from "@/lib/appwrite/results";
@@ -20,10 +20,8 @@ function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [screen, setScreen] = useState<Screen>("selector");
-  const [, setSelectedPoemId] = useState<string | null>(null);
   const [selectedPoem, setSelectedPoem] = useState<PoemDocument | null>(null);
   const [mode, setMode] = useState<Mode>("complete");
-  const [, setCurrentStanzaIndex] = useState(0);
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
   const [evaluations, setEvaluations] = useState<AIEvaluation[]>([]);
   const [averageScore, setAverageScore] = useState(0);
@@ -31,6 +29,7 @@ function App() {
   const [viewingResult, setViewingResult] = useState<ResultDocument | null>(
     null,
   );
+  const [debugPrompt, setDebugPrompt] = useState<string>("");
 
   useEffect(() => {
     checkAuth();
@@ -58,11 +57,7 @@ function App() {
       year: 0,
       fullText: selectedPoem.fullText.split("\n"),
       stanzas: stanzas,
-      linearAnalysis: selectedPoem.linearAnalysis
-        ? typeof selectedPoem.linearAnalysis === "string"
-          ? JSON.parse(selectedPoem.linearAnalysis)
-          : selectedPoem.linearAnalysis
-        : [],
+      linearAnalysis: [],
     };
   }, [selectedPoem]);
 
@@ -85,7 +80,6 @@ function App() {
     try {
       const poem = await getPoemById(poemId);
       if (poem) {
-        setSelectedPoemId(poemId);
         setSelectedPoem(poem);
         setScreen("mode");
       }
@@ -97,22 +91,20 @@ function App() {
 
   const handleModeSelect = (selectedMode: Mode) => {
     setMode(selectedMode);
-    setCurrentStanzaIndex(0);
     setAnswers([]);
     setEvaluations([]);
     setScreen("quiz");
   };
 
-  const handleAnswerSubmit = async (answer: UserAnswer) => {
+  const handleMultipleAnalysesSubmit = async (
+    analyses: Array<{ selectedWords: string[]; analysis: string }>,
+  ) => {
     if (!selectedPoem) return;
 
-    // Optimistic UI: add answer immediately
-    const newAnswers = [...answers, answer];
-    setAnswers(newAnswers);
     setIsEvaluating(true);
 
     try {
-      // Convert PoemDocument to Poem format with proper stanzas
+      // Convert PoemDocument to Poem format
       const stanzas = selectedPoem.fullText
         .split("\n\n")
         .map((stanzaText, idx) => ({
@@ -128,51 +120,63 @@ function App() {
         year: 0,
         fullText: selectedPoem.fullText.split("\n"),
         stanzas: stanzas,
-        linearAnalysis: selectedPoem.linearAnalysis
-          ? typeof selectedPoem.linearAnalysis === "string"
-            ? JSON.parse(selectedPoem.linearAnalysis)
-            : selectedPoem.linearAnalysis
-          : [],
+        linearAnalysis: [],
+        analyses: selectedPoem.analyses,
       };
 
-      const evaluation = await evaluateAnswer(poemForAI, answer);
+      // Nouvelle évaluation multiple
+      const result = await evaluateMultipleAnalyses(poemForAI, analyses);
 
-      // Update evaluations
-      const newEvaluations = [...evaluations, evaluation];
-      setEvaluations(newEvaluations);
+      // Créer les UserAnswer
+      const answers: UserAnswer[] = result.evaluations.map((evaluation) => ({
+        stanzaId: stanzas[0].id,
+        selectedWords: evaluation.selectedWords,
+        analysis: evaluation.userAnalysis,
+      }));
 
-      // Calculate average and go to results
-      const avgScore =
-        newEvaluations.reduce((sum, e) => sum + e.score, 0) /
-        newEvaluations.length;
-      setAverageScore(avgScore);
+      // Créer les AIEvaluation
+      const evaluations: AIEvaluation[] = result.evaluations.map(
+        (evaluation) => ({
+          score: evaluation.score,
+          feedback: evaluation.feedback,
+          missedPoints: evaluation.missedPoints,
+          strengths: evaluation.strengths,
+          analysis: result.globalFeedback,
+        }),
+      );
 
-      // Save result to database
+      // Sauvegarder dans la DB
       try {
         if (!user) {
           throw new Error("User not authenticated");
         }
+
         await createResult({
           userId: user.$id,
           poemId: selectedPoem.$id,
           poemTitle: selectedPoem.title,
           poemAuthor: selectedPoem.author,
           mode: mode,
-          answers: newAnswers,
-          evaluations: newEvaluations,
-          averageScore: avgScore,
+          answers: answers,
+          evaluations: evaluations,
+          averageScore: result.averageScore,
           totalStanzas: stanzas.length,
         });
       } catch (error) {
         console.error("Error saving result:", error);
       }
 
+      setAnswers(answers);
+      setEvaluations(evaluations);
+      setAverageScore(result.averageScore);
+      setDebugPrompt(result.debugPrompt || "");
       setScreen("results");
     } catch (error) {
-      // Rollback optimistic update on error
-      setAnswers(answers);
       console.error("Erreur lors de l'évaluation:", error);
-      alert("Erreur lors de l'évaluation. Vérifiez votre clé API OpenRouter.");
+      alert(
+        "Erreur lors de l'évaluation: " +
+          (error instanceof Error ? error.message : "Erreur inconnue"),
+      );
     } finally {
       setIsEvaluating(false);
     }
@@ -180,29 +184,24 @@ function App() {
 
   const handleBackFromMode = () => {
     setScreen("selector");
-    setSelectedPoemId(null);
     setSelectedPoem(null);
   };
 
   const handleBackFromQuiz = () => {
     setScreen("mode");
-    setCurrentStanzaIndex(0);
     setAnswers([]);
     setEvaluations([]);
   };
 
   const handleRestart = () => {
     setScreen("mode");
-    setCurrentStanzaIndex(0);
     setAnswers([]);
     setEvaluations([]);
   };
 
   const handleHome = () => {
     setScreen("selector");
-    setSelectedPoemId(null);
     setSelectedPoem(null);
-    setCurrentStanzaIndex(0);
     setAnswers([]);
     setEvaluations([]);
     setViewingResult(null);
@@ -271,7 +270,7 @@ function App() {
           totalStanzas={poemForAnalysis.stanzas.length}
           mode={mode}
           userId={user.$id}
-          onSubmit={handleAnswerSubmit}
+          onSubmit={handleMultipleAnalysesSubmit}
           onBack={handleBackFromQuiz}
           isLoading={isEvaluating}
         />
@@ -333,6 +332,7 @@ function App() {
           evaluations={evaluations}
           answers={answers}
           averageScore={averageScore}
+          debugPrompt={debugPrompt}
           onRestart={handleRestart}
           onHome={handleHome}
         />

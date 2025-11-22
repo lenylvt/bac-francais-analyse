@@ -8,10 +8,12 @@ Application web moderne pour analyser des poèmes avec assistance IA et sauvegar
 - **Sélection interactive** : Cliquez et glissez pour sélectionner les mots clés
 - **Analyses multiples** : Créez plusieurs analyses avant soumission
 - **Sauvegarde automatique** : Toutes vos analyses sont sauvegardées dans Appwrite
+- **Reprise d'analyse** : Continuez une analyse non terminée automatiquement
+- **Analyse complète** : Combine toutes vos analyses + analyse de référence de la DB
 - **Mode Complet/Rapide** : Analysez tout le poème ou des strophes aléatoires
 - **Évaluation IA** : Feedback détaillé avec score via OpenRouter
 - **Interface responsive** : Design optimisé mobile et desktop
-- **Optimistic UI** : Réponse instantanée avec rollback automatique
+- **Thème sombre/clair** : Personnalisez votre expérience
 - **Preloading** : Connexion API préchauffée pour réponses rapides
 - **Cache intelligent** : Résultats mis en cache pour éviter requêtes dupliquées
 
@@ -43,7 +45,29 @@ cp .env.example .env
 3. Notez le Database ID
 ```
 
-### 3. Créer la Collection "analyses"
+### 3. Créer la Collection "poems"
+
+**Attributs à créer:**
+
+| Attribut | Type | Requis | Taille/Défaut |
+|----------|------|--------|---------------|
+| title | String | ✅ | 200 |
+| author | String | ✅ | 200 |
+| fullText | String | ✅ | 50000 |
+| analyses | String | ❌ | 100000 |
+
+**Note importante**: L'attribut `analyses` contient l'analyse de référence complète du poème. Cette analyse sera automatiquement incluse lors de la soumission à l'IA pour enrichir l'évaluation.
+
+**Permissions:**
+
+```
+Create: admin only
+Read: any
+Update: admin only
+Delete: admin only
+```
+
+### 4. Créer la Collection "analyses"
 
 **Attributs à créer:**
 
@@ -71,10 +95,10 @@ cp .env.example .env
 Create: users
 Read: user:[USER_ID]
 Update: user:[USER_ID]
-Delete: user:[USER_ID]
+Delete: none (pas nécessaire)
 ```
 
-### 4. Activer l'Authentification OTP
+### 5. Activer l'Authentification OTP
 
 ```bash
 # Dans Settings → Auth
@@ -82,7 +106,7 @@ Delete: user:[USER_ID]
 2. Email OTP: ON
 ```
 
-### 5. Variables d'Environnement
+### 6. Variables d'Environnement
 
 Éditez votre `.env`:
 
@@ -90,7 +114,8 @@ Delete: user:[USER_ID]
 VITE_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
 VITE_APPWRITE_PROJECT_ID=votre_project_id
 VITE_APPWRITE_DATABASE_ID=votre_database_id
-VITE_APPWRITE_ANALYSES_COLLECTION_ID=votre_collection_id
+VITE_APPWRITE_ANALYSES_COLLECTION_ID=votre_collection_analyses_id
+VITE_APPWRITE_POEMS_COLLECTION_ID=votre_collection_poems_id
 VITE_OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
@@ -114,15 +139,22 @@ Ouvrez http://localhost:5173
 
 1. **Sélectionnez** un poème sur la page d'accueil
 2. **Choisissez** le mode (Complet ou Rapide)
-3. **Cliquez et glissez** sur les mots importants
-4. **Rédigez** votre analyse
-5. **Enregistrez** (répétez autant de fois que nécessaire)
-6. **Revoir** toutes vos analyses via le bouton header
-7. **Soumettre à l'IA** pour évaluation complète
+3. **Reprise automatique** : Si une analyse est en cours, dialogue de reprise
+4. **Cliquez et glissez** sur les mots importants
+5. **Rédigez** votre analyse dans le champ texte
+6. **Enregistrez** (répétez autant de fois que nécessaire)
+7. **Revoir** toutes vos analyses via le bouton header
+8. **Soumettre à l'IA** : Combine TOUTES vos analyses + analyse de référence DB du poème pour évaluation complète
+
+### Reprise d'Analyse
+
+- À l'ouverture : détection automatique des analyses non terminées
+- **Reprendre** : Restaure toutes les analyses précédentes
+- **Nouvelle analyse** : Marque les anciennes comme terminées et recommence
 
 ### Mode Édition
 
-- Dans le dialogue "Revoir", cliquez "Modifier"
+- Dans le dialogue "Revoir", cliquez sur l'icône œil
 - Les mots et texte se rechargent automatiquement
 - Modifiez puis sauvegardez
 
@@ -148,7 +180,8 @@ src/
 │   └── ui/                   # shadcn components
 ├── hooks/
 │   ├── usePreloadAPI.ts      # Preload API connection
-│   └── useOptimisticState.ts # Optimistic UI updates
+│   ├── useTheme.tsx          # Gestion thème sombre/clair
+│   └── use-toast.ts          # Toast notifications
 ├── lib/
 │   └── appwrite/
 │       ├── config.ts         # Configuration client
@@ -196,17 +229,21 @@ Body:
 
 Toutes les analyses sont automatiquement sauvegardées dans Appwrite:
 
-- **Auto-save**: Chaque "Enregistrer" crée un document
-- **Édition**: Mise à jour du document existant
+- **Auto-save**: Chaque "Enregistrer" crée/met à jour un document
+- **Reprise**: Détection automatique des analyses non terminées
+- **Édition**: Mise à jour du document existant via currentAnalysisId
+- **Combinaison intelligente**: Soumission combine :
+  - Toutes les analyses locales (Analyse 1, 2, 3...)
+  - Analyses sauvegardées dans DB (collection analyses)
+  - Analyse de référence complète (attribut `analyses` du poème passé via App.tsx)
+- **Nettoyage automatique**: 
+  - Au chargement : suppression des analyses marquées complétées
+  - À la soumission : suppression de toutes les analyses DB utilisées
+  - Les résultats sont sauvegardés dans la collection `results`
 - **Stats**: Analyses totales, complétées, score moyen
 - **Historique**: Toutes les analyses par utilisateur
 
 ## ⚡ Optimisations Performances
-
-### Optimistic UI
-- Mise à jour immédiate de l'UI avant requête API
-- Rollback automatique en cas d'erreur
-- Feedback instantané pour l'utilisateur
 
 ### API Preloading
 - DNS prefetch vers openrouter.ai au démarrage
@@ -219,11 +256,17 @@ Toutes les analyses sont automatiquement sauvegardées dans Appwrite:
 - Cleanup automatique toutes les 5 minutes
 - Évite requêtes API dupliquées
 
+### Parsing JSON Robuste
+- Détection et suppression code blocks markdown
+- Nettoyage caractères spéciaux et line breaks
+- Suppression trailing commas
+- Gestion erreurs détaillée avec logs
+- Retry automatique en cas d'erreur format
+
 ### Optimisations React
 - `useMemo` pour calculs coûteux (conversion poèmes)
-- `useCallback` pour callbacks stables
 - Skeleton loading pendant évaluation IA
-- Lazy rendering des composants non-critiques
+- États minimaux (suppression des états inutilisés)
 
 ## 📝 Commandes
 
@@ -263,13 +306,27 @@ console.log(await databases.listDocuments(...))
 - Mobile: < 768px (vertical)
 - Desktop: ≥ 768px (2 colonnes)
 
+## 🚧 Améliorations récentes
+
+- [x] Thème sombre/clair avec toggle
+- [x] Reprise automatique d'analyses non terminées
+- [x] Combinaison analyses multiples + DB + référence
+- [x] Nettoyage code inutilisé
+- [x] Fix couleurs boutons en mode sombre
+- [x] Compteur analyses dans bouton de soumission
+- [x] Utilisation attribut `analyses` DB pour analyse de référence
+- [x] Prompt IA amélioré pour analyses multiples
+- [x] Nettoyage automatique analyses complétées (pas d'accumulation)
+- [x] Parsing JSON robuste avec nettoyage automatique
+- [x] Priorité analyses : DB > linearAnalysis > basique
+- [x] Fix transmission analyse référence depuis App.tsx vers IA
+
 ## 🚧 TODO
 
 - [ ] Export PDF des analyses
 - [ ] Graphiques de progression
 - [ ] Partage d'analyses
 - [ ] Mode hors-ligne (PWA)
-- [ ] Thème sombre
 - [ ] Service Worker pour cache persistant
 - [ ] Prefetch poèmes suivants
 

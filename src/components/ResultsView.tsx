@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
 import { Separator } from "@/components/ui/separator";
 import {
   CheckCircle2,
@@ -12,6 +11,8 @@ import {
   ChevronUp,
   Moon,
   Sun,
+  Sparkles,
+  Code,
 } from "lucide-react";
 import type { Poem, AIEvaluation, UserAnswer } from "@/types";
 import { useState } from "react";
@@ -22,6 +23,7 @@ interface ResultsViewProps {
   evaluations: AIEvaluation[];
   answers: UserAnswer[];
   averageScore: number;
+  debugPrompt?: string;
   onRestart: () => void;
   onHome: () => void;
 }
@@ -31,35 +33,56 @@ export default function ResultsView({
   evaluations,
   answers,
   averageScore,
+  debugPrompt,
   onRestart,
   onHome,
 }: ResultsViewProps) {
   const { theme, toggleTheme } = useTheme();
-  const [expandedStanzas, setExpandedStanzas] = useState<number[]>([0]);
+  const [expandedAnalyses, setExpandedAnalyses] = useState<number[]>([0]);
+  const [showDebug, setShowDebug] = useState(false);
 
   const getScoreColor = (score: number) => {
-    if (score >= 16) return "text-green-600";
-    if (score >= 12) return "text-blue-600";
-    if (score >= 10) return "text-orange-600";
-    return "text-red-600";
+    if (score >= 16) return "text-green-600 dark:text-green-400";
+    if (score >= 12) return "text-blue-600 dark:text-blue-400";
+    if (score >= 10) return "text-orange-600 dark:text-orange-400";
+    return "text-red-600 dark:text-red-400";
   };
 
   const getScoreBadge = (score: number) => {
-    if (score >= 16) return { label: "Excellent", variant: "default" as const };
-    if (score >= 12) return { label: "Bien", variant: "secondary" as const };
-    if (score >= 10) return { label: "Passable", variant: "outline" as const };
-    return { label: "À améliorer", variant: "destructive" as const };
+    if (score >= 16)
+      return {
+        label: "Excellent",
+        variant: "default" as const,
+        color: "bg-green-600",
+      };
+    if (score >= 12)
+      return {
+        label: "Bien",
+        variant: "secondary" as const,
+        color: "bg-blue-600",
+      };
+    if (score >= 10)
+      return {
+        label: "Passable",
+        variant: "outline" as const,
+        color: "bg-orange-600",
+      };
+    return {
+      label: "À améliorer",
+      variant: "destructive" as const,
+      color: "bg-red-600",
+    };
   };
 
-  const toggleStanza = (index: number) => {
-    setExpandedStanzas((prev) =>
+  const toggleAnalysis = (index: number) => {
+    setExpandedAnalyses((prev) =>
       prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
     );
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header compact sticky */}
+      {/* Header sticky compact */}
       <div className="sticky top-0 z-10 bg-card border-b shadow-sm">
         <div className="px-4 py-3">
           <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
@@ -101,31 +124,100 @@ export default function ResultsView({
 
       {/* Contenu scrollable */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto p-4 space-y-3">
+        <div className="max-w-3xl mx-auto p-4 space-y-4">
+          {/* Feedback global */}
+          {evaluations.length > 0 && evaluations[0].analysis && (
+            <Card className="border-2 border-primary/20 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  Feedback global
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm leading-relaxed">
+                  {evaluations[0].analysis}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Badge nombre d'analyses */}
+          <div className="flex items-center justify-center gap-2 py-2">
+            <Badge variant="outline" className="text-sm">
+              {evaluations.length} analyse{evaluations.length > 1 ? "s" : ""}{" "}
+              évaluée{evaluations.length > 1 ? "s" : ""}
+            </Badge>
+          </div>
+
+          {/* Debug card */}
+          {debugPrompt && (
+            <Card className="border-2 border-purple-500/30 bg-purple-50/50 dark:bg-purple-950/20">
+              <CardHeader
+                className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                onClick={() => setShowDebug(!showDebug)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Code className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    Prompt envoyé à l'IA
+                  </CardTitle>
+                  {showDebug ? (
+                    <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                  )}
+                </div>
+              </CardHeader>
+              {showDebug && (
+                <CardContent>
+                  <pre className="text-xs bg-muted/50 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-words">
+                    {debugPrompt}
+                  </pre>
+                </CardContent>
+              )}
+            </Card>
+          )}
+
+          {/* Chaque analyse individuellement */}
           {evaluations.map((evaluation, index) => {
-            const stanza = poem.stanzas.find(
-              (s) => s.id === answers[index].stanzaId,
-            );
-            const analysis = poem.linearAnalysis?.find(
-              (a) => a.stanzaId === answers[index].stanzaId,
-            );
-            const isExpanded = expandedStanzas.includes(index);
+            const answer = answers[index];
+            const isExpanded = expandedAnalyses.includes(index);
 
             return (
-              <Card key={index} className="border shadow-sm">
+              <Card
+                key={index}
+                className="border-2 hover:border-primary/50 transition-colors"
+              >
                 <CardHeader
-                  className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => toggleStanza(index)}
+                  className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors rounded-t-lg"
+                  onClick={() => toggleAnalysis(index)}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base mb-1">
-                        Strophe {answers[index].stanzaId}
+                      <CardTitle className="text-base mb-2 flex items-center gap-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                          {index + 1}
+                        </span>
+                        Analyse {index + 1}
                       </CardTitle>
-                      {stanza && (
-                        <div className="text-xs text-muted-foreground italic line-clamp-1">
-                          {stanza.lines[0]}
-                        </div>
+                      {/* Mots sélectionnés */}
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {answer.selectedWords.map((word, i) => (
+                          <Badge
+                            key={i}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {word}
+                          </Badge>
+                        ))}
+                      </div>
+                      {/* Analyse élève condensée */}
+                      {!isExpanded && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-2">
+                          {answer.analysis}
+                        </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -150,9 +242,25 @@ export default function ResultsView({
                   <CardContent className="pt-0 space-y-4">
                     <Separator />
 
+                    {/* Analyse complète de l'élève */}
+                    <div>
+                      <h3 className="font-semibold text-sm mb-2 text-muted-foreground">
+                        Ton analyse
+                      </h3>
+                      <div className="bg-muted/30 rounded-lg p-3">
+                        <p className="text-sm leading-relaxed">
+                          {answer.analysis}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
                     {/* Feedback */}
                     <div>
-                      <h3 className="font-semibold text-sm mb-2">Feedback</h3>
+                      <h3 className="font-semibold text-sm mb-2">
+                        Feedback du professeur
+                      </h3>
                       <p className="text-sm leading-relaxed">
                         {evaluation.feedback}
                       </p>
@@ -210,21 +318,6 @@ export default function ResultsView({
                               </li>
                             ))}
                           </ul>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Analyse de référence */}
-                    {analysis && (
-                      <>
-                        <Separator />
-                        <div>
-                          <h3 className="font-semibold text-sm mb-2">
-                            Analyse de référence
-                          </h3>
-                          <p className="text-sm leading-relaxed">
-                            {analysis.analysis}
-                          </p>
                         </div>
                       </>
                     )}
