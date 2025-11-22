@@ -42,7 +42,6 @@ export interface MultipleAnalysesResult {
   evaluations: AnalysisEvaluation[];
   averageScore: number;
   globalFeedback: string;
-  debugPrompt?: string;
 }
 
 /**
@@ -248,9 +247,6 @@ Réponds UNIQUEMENT avec ce JSON (aucun texte avant ou après) :
     ) {
       throw new Error("Champs globaux manquants ou invalides");
     }
-
-    // Ajouter le prompt complet pour debug
-    result.debugPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
 
     return result;
   } catch (error) {

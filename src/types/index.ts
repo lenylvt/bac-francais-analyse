@@ -64,5 +64,4 @@ export interface MultipleAnalysesResult {
   evaluations: AnalysisEvaluation[];
   averageScore: number;
   globalFeedback: string;
-  debugPrompt?: string;
 }
