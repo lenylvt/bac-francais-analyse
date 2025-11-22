@@ -12,7 +12,6 @@ import {
   Moon,
   Sun,
   Sparkles,
-  Code,
 } from "lucide-react";
 import type { Poem, AIEvaluation, UserAnswer } from "@/types";
 import { useState } from "react";
