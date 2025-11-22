@@ -13,6 +13,7 @@ import { createResult, type ResultDocument } from "@/lib/appwrite/results";
 import { usePreloadAPI } from "@/hooks/usePreloadAPI";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
+import { Toaster } from "@/components/ui/toaster";
 
 type Screen = "selector" | "mode" | "quiz" | "results" | "progress";
 
@@ -331,7 +332,11 @@ function App() {
     }
   }
 
-  return null;
+  return (
+    <>
+      <Toaster />
+    </>
+  );
 }
 
 export default App;

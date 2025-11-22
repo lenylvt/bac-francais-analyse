@@ -31,6 +31,7 @@ import {
   type SavedAnalysisDocument,
 } from "@/lib/appwrite/database";
 import { useTheme } from "@/hooks/useTheme";
+import { useToast } from "@/hooks/use-toast";
 
 interface StanzaAnalysisProps {
   poem: Poem;
@@ -60,6 +61,9 @@ interface SavedAnalysis {
   timestamp: number;
 }
 
+// Format for combined analysis sections
+const ANALYSIS_SECTION_FORMAT = (index: number) => `### Analyse ${index + 1}\n`;
+
 export default function StanzaAnalysis({
   poem,
   stanzaIndex,
@@ -71,6 +75,7 @@ export default function StanzaAnalysis({
   isLoading = false,
 }: StanzaAnalysisProps) {
   const { theme, toggleTheme } = useTheme();
+  const { toast } = useToast();
   const stanza = poem.stanzas[stanzaIndex];
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(
     new Set(),
@@ -332,7 +337,10 @@ export default function StanzaAnalysis({
       setCurrentAnalysisId(null);
     } catch (error) {
       console.error("Error saving analysis:", error);
-      alert("Erreur lors de la sauvegarde de l'analyse");
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la sauvegarde de l'analyse",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -394,7 +402,10 @@ export default function StanzaAnalysis({
       setCurrentAnalysisId(null);
     } catch (error) {
       console.error("Error saving edit:", error);
-      alert("Erreur lors de la sauvegarde");
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la sauvegarde",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -414,14 +425,17 @@ export default function StanzaAnalysis({
       const incompleteAnalyses = latestAnalyses.filter((a) => !a.completed);
 
       if (incompleteAnalyses.length === 0) {
-        alert("Aucune analyse à soumettre");
+        toast({
+          title: "Aucune analyse",
+          description: "Aucune analyse à soumettre",
+        });
         return;
       }
 
       // Combine all analyses from DB (not just local state)
       const combinedWords = incompleteAnalyses.flatMap((a) => a.selectedWords);
       const combinedAnalysis = incompleteAnalyses
-        .map((a, index) => `### Analyse ${index + 1}\n${a.analysis}`)
+        .map((a, index) => `${ANALYSIS_SECTION_FORMAT(index)}${a.analysis}`)
         .join("\n\n");
 
       // Convert uniqueIds to clean words for AI
@@ -449,7 +463,10 @@ export default function StanzaAnalysis({
       onSubmit(answer);
     } catch (error) {
       console.error("Error submitting to AI:", error);
-      alert("Erreur lors de la soumission");
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la soumission",
+      });
     }
   };
 
