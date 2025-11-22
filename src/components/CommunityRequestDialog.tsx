@@ -126,7 +126,7 @@ export default function CommunityRequestDialog({
           current: i + 1,
           successCount: prev.successCount + 1,
         }));
-      } catch (error) {
+      } catch {
         setMultiImportProgress((prev) => ({
           ...prev,
           current: i + 1,

@@ -59,7 +59,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       phone: user.phone,
       labels: user.labels || [],
     };
-  } catch (error: any) {
+  } catch {
     return null;
   }
 }
