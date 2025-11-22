@@ -152,7 +152,7 @@ export default function Auth({ onSuccess }: AuthProps) {
                 <Button
                   type="submit"
                   disabled={loading || !email}
-                  className="w-full h-11 bg-black hover:bg-black/90"
+                  className="w-full h-11"
                 >
                   {loading ? (
                     <>
