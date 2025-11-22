@@ -10,7 +10,7 @@ if (!projectId) {
   throw new Error("VITE_APPWRITE_PROJECT_ID is missing!");
 }
 
-client.setEndpoint(endpoint).setProject(projectId);
+client.setEndpoint(endpoint).setProject(projectId).setLocale("fr");
 
 export const account = new Account(client);
 export const databases = new Databases(client);
