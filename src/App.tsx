@@ -48,11 +48,11 @@ function App() {
         lines: stanzaText.split("\n").filter((line) => line.trim()),
       }));
 
-    // En mode rapide, sélectionner aléatoirement 3 strophes
+    // En mode rapide, sélectionner aléatoirement 1 strophe
     let stanzas = allStanzas;
-    if (mode === "quick" && allStanzas.length > 3) {
-      const shuffled = [...allStanzas].sort(() => Math.random() - 0.5);
-      stanzas = shuffled.slice(0, 3).sort((a, b) => a.id - b.id);
+    if (mode === "quick" && allStanzas.length > 1) {
+      const randomIndex = Math.floor(Math.random() * allStanzas.length);
+      stanzas = [allStanzas[randomIndex]];
     }
 
     return {

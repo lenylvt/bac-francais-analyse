@@ -25,11 +25,13 @@ import {
   Sun,
   Plus,
   FileText,
+  Smartphone,
 } from "lucide-react";
 import { logout, getCurrentUser, isAdmin } from "@/lib/appwrite/auth";
 import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
 import { getAllPoems, type PoemDocument } from "@/lib/appwrite/poems";
 import { useTheme } from "@/hooks/useTheme";
+import { useIsMobile } from "@/hooks/use-mobile";
 import CommunityRequestDialog from "./CommunityRequestDialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -45,6 +47,7 @@ export default function PoemSelector({
   onProgress,
 }: PoemSelectorProps) {
   const { theme, toggleTheme } = useTheme();
+  const isMobile = useIsMobile();
   const [stats, setStats] = useState({
     totalAnalyses: 0,
     completedAnalyses: 0,
@@ -349,7 +352,7 @@ export default function PoemSelector({
                       <div className="flex items-start justify-between gap-4">
                         <div
                           className="flex-1 min-w-0 cursor-pointer"
-                          onClick={() => onSelect(dbPoem.$id)}
+                          onClick={() => !isMobile && onSelect(dbPoem.$id)}
                         >
                           <div className="flex items-start gap-3 mb-3">
                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary flex items-center justify-center">
@@ -379,33 +382,46 @@ export default function PoemSelector({
                             </div>
                           </div>
 
-                          {dbPoem.analyses && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedAnalysis({
-                                  title: dbPoem.title,
-                                  analysis: dbPoem.analyses || "",
-                                });
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <FileText className="w-4 h-4" />
-                              Lire l'analyse
-                            </Button>
-                          )}
-                        </div>
-
-                        <div
-                          className="flex-shrink-0 cursor-pointer"
-                          onClick={() => onSelect(dbPoem.$id)}
-                        >
-                          <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-primary group-hover:text-primary-foreground flex items-center justify-center transition-colors">
-                            <ChevronRight className="w-4 h-4" />
+                          <div className="flex gap-2 flex-wrap">
+                            {dbPoem.analyses && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedAnalysis({
+                                    title: dbPoem.title,
+                                    analysis: dbPoem.analyses || "",
+                                  });
+                                }}
+                                className="flex items-center gap-2"
+                              >
+                                <FileText className="w-4 h-4" />
+                                Lire l'analyse
+                              </Button>
+                            )}
+                            {isMobile && (
+                              <Badge
+                                variant="secondary"
+                                className="flex items-center gap-1 text-xs"
+                              >
+                                <Smartphone className="w-3 h-3" />
+                                Analyses disponibles sur PC uniquement
+                              </Badge>
+                            )}
                           </div>
                         </div>
+
+                        {!isMobile && (
+                          <div
+                            className="flex-shrink-0 cursor-pointer"
+                            onClick={() => onSelect(dbPoem.$id)}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-primary group-hover:text-primary-foreground flex items-center justify-center transition-colors">
+                              <ChevronRight className="w-4 h-4" />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -458,15 +474,75 @@ export default function PoemSelector({
         open={!!selectedAnalysis}
         onOpenChange={() => setSelectedAnalysis(null)}
       >
-        <DialogContent className="max-w-4xl max-h-[85vh]">
-          <DialogHeader>
-            <DialogTitle>{selectedAnalysis?.title}</DialogTitle>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <DialogTitle className="text-2xl font-bold poem-title">
+              {selectedAnalysis?.title}
+            </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="h-[calc(85vh-100px)] pr-4">
-            <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                {selectedAnalysis?.analysis.replace(/\\n/g, "\n") || ""}
-              </ReactMarkdown>
+          <ScrollArea className="h-[calc(90vh-120px)]">
+            <div className="p-6 pt-4">
+              <div className="prose prose-base dark:prose-invert max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                  components={{
+                    h1: ({ ...props }) => (
+                      <h1 className="text-2xl font-bold mt-6 mb-4" {...props} />
+                    ),
+                    h2: ({ ...props }) => (
+                      <h2
+                        className="text-xl font-semibold mt-5 mb-3"
+                        {...props}
+                      />
+                    ),
+                    h3: ({ ...props }) => (
+                      <h3
+                        className="text-lg font-semibold mt-4 mb-2"
+                        {...props}
+                      />
+                    ),
+                    p: ({ ...props }) => (
+                      <p className="mb-4 leading-relaxed" {...props} />
+                    ),
+                    ul: ({ ...props }) => (
+                      <ul
+                        className="list-disc pl-6 mb-4 space-y-2"
+                        {...props}
+                      />
+                    ),
+                    ol: ({ ...props }) => (
+                      <ol
+                        className="list-decimal pl-6 mb-4 space-y-2"
+                        {...props}
+                      />
+                    ),
+                    li: ({ ...props }) => (
+                      <li className="leading-relaxed" {...props} />
+                    ),
+                    blockquote: ({ ...props }) => (
+                      <blockquote
+                        className="border-l-4 border-primary pl-4 italic my-4 text-muted-foreground"
+                        {...props}
+                      />
+                    ),
+                    strong: ({ ...props }) => (
+                      <strong
+                        className="font-semibold text-foreground"
+                        {...props}
+                      />
+                    ),
+                    em: ({ ...props }) => <em className="italic" {...props} />,
+                    code: ({ ...props }) => (
+                      <code
+                        className="bg-muted px-1.5 py-0.5 rounded text-sm"
+                        {...props}
+                      />
+                    ),
+                  }}
+                >
+                  {selectedAnalysis?.analysis.replace(/\\n/g, "\n") || ""}
+                </ReactMarkdown>
+              </div>
             </div>
           </ScrollArea>
         </DialogContent>
