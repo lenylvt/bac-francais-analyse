@@ -3,11 +3,13 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 import { ThemeProvider } from "./hooks/useTheme";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
       <App />
+      <SpeedInsights />
     </ThemeProvider>
   </StrictMode>,
 );
