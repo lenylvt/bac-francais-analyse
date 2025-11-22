@@ -11,6 +11,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
   ArrowLeft,
   Check,
   Loader2,
@@ -21,6 +26,11 @@ import {
   GripVertical,
   Moon,
   Sun,
+  FileEdit,
+  AlertTriangle,
+  Underline,
+  Link2,
+  Brush,
 } from "lucide-react";
 import type { Poem } from "@/types";
 import {
@@ -57,17 +67,30 @@ interface WordData {
   uniqueId: string;
 }
 
-type AnnotationType =
-  | "draft"
-  | "important"
-  | "underline"
-  | "highlight"
-  | "question";
+type AnnotationType = "draft" | "important" | "underline";
 
 interface Annotation {
   wordId: string;
   type: AnnotationType;
   color?: string;
+  note?: string;
+  timestamp: number;
+  groupId?: string;
+}
+
+interface AnnotationGroup {
+  id: string;
+  name: string;
+  color: string;
+  wordIds: string[];
+  note?: string;
+  timestamp: number;
+}
+
+interface AnnotationHistoryItem {
+  action: "add" | "remove" | "edit";
+  annotation: Annotation;
+  timestamp: number;
 }
 
 interface SavedAnalysis {
@@ -118,6 +141,24 @@ export default function StanzaAnalysis({
   const [annotationMode, setAnnotationMode] = useState<AnnotationType | null>(
     null,
   );
+  const [annotationHistory, setAnnotationHistory] = useState<
+    AnnotationHistoryItem[]
+  >([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [brushMode, setBrushMode] = useState(false);
+  const [editingNote, setEditingNote] = useState<{
+    wordId: string;
+    note: string;
+  } | null>(null);
+  const [annotationGroups, setAnnotationGroups] = useState<
+    Map<string, AnnotationGroup>
+  >(new Map());
+  const [selectedGroupWords, setSelectedGroupWords] = useState<Set<string>>(
+    new Set(),
+  );
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
+  const [showToolbar, setShowToolbar] = useState(true);
 
   const isComplete = mode === "complete";
   const isGeneralAnalysis = selectedWordIds.size === 0;
@@ -274,24 +315,111 @@ export default function StanzaAnalysis({
     });
   });
 
+  // Ajouter une annotation à l'historique
+  const addToHistory = (
+    action: "add" | "remove" | "edit",
+    annotation: Annotation,
+  ) => {
+    const newHistory = annotationHistory.slice(0, historyIndex + 1);
+    newHistory.push({ action, annotation, timestamp: Date.now() });
+    setAnnotationHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  // Undo annotation
+  const undoAnnotation = () => {
+    if (historyIndex < 0) return;
+    const item = annotationHistory[historyIndex];
+    setAnnotations((prev) => {
+      const newMap = new Map(prev);
+      if (item.action === "add") {
+        newMap.delete(item.annotation.wordId);
+      } else if (item.action === "remove") {
+        newMap.set(item.annotation.wordId, item.annotation);
+      }
+      return newMap;
+    });
+    setHistoryIndex(historyIndex - 1);
+  };
+
+  // Redo annotation
+  const redoAnnotation = () => {
+    if (historyIndex >= annotationHistory.length - 1) return;
+    const item = annotationHistory[historyIndex + 1];
+    setAnnotations((prev) => {
+      const newMap = new Map(prev);
+      if (item.action === "add") {
+        newMap.set(item.annotation.wordId, item.annotation);
+      } else if (item.action === "remove") {
+        newMap.delete(item.annotation.wordId);
+      }
+      return newMap;
+    });
+    setHistoryIndex(historyIndex + 1);
+  };
+
+  // Raccourcis clavier
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + Z = Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undoAnnotation();
+      }
+      // Ctrl/Cmd + Shift + Z = Redo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey) {
+        e.preventDefault();
+        redoAnnotation();
+      }
+      // Esc = désactiver mode annotation
+      if (e.key === "Escape") {
+        setAnnotationMode(null);
+        setBrushMode(false);
+      }
+      // 1-3 = types d'annotation
+      if (e.key === "1") setAnnotationMode("draft");
+      if (e.key === "2") setAnnotationMode("important");
+      if (e.key === "3") setAnnotationMode("underline");
+      // B = toggle brush mode
+      if (e.key === "b" || e.key === "B") {
+        setBrushMode((prev) => !prev);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [historyIndex, annotationHistory]);
+
   const handleWordMouseDown = useCallback(
     (uniqueId: string) => {
       // Si mode annotation, appliquer l'annotation
       if (annotationMode) {
         setAnnotations((prev) => {
           const newMap = new Map(prev);
-          if (
-            newMap.has(uniqueId) &&
-            newMap.get(uniqueId)?.type === annotationMode
-          ) {
+          const existing = newMap.get(uniqueId);
+
+          if (existing && existing.type === annotationMode) {
             // Retirer l'annotation si même type
             newMap.delete(uniqueId);
+            addToHistory("remove", existing);
           } else {
             // Ajouter/changer l'annotation
-            newMap.set(uniqueId, { wordId: uniqueId, type: annotationMode });
+            const newAnnotation: Annotation = {
+              wordId: uniqueId,
+              type: annotationMode,
+              timestamp: Date.now(),
+            };
+            newMap.set(uniqueId, newAnnotation);
+            addToHistory("add", newAnnotation);
           }
           return newMap;
         });
+
+        // Si brush mode, continuer le drag
+        if (brushMode) {
+          setIsDragging(true);
+          dragStartWordId.current = uniqueId;
+        }
         return;
       }
 
@@ -308,14 +436,38 @@ export default function StanzaAnalysis({
         return newSet;
       });
     },
-    [annotationMode],
+    [annotationMode, brushMode, historyIndex, annotationHistory],
   );
 
   const handleWordMouseEnter = useCallback(
     (uniqueId: string) => {
-      if (annotationMode) return; // Pas de drag en mode annotation
+      // Brush mode en annotation
+      if (annotationMode && brushMode && isDragging) {
+        setAnnotations((prev) => {
+          const newMap = new Map(prev);
+          if (
+            !newMap.has(uniqueId) ||
+            newMap.get(uniqueId)?.type !== annotationMode
+          ) {
+            const newAnnotation: Annotation = {
+              wordId: uniqueId,
+              type: annotationMode,
+              timestamp: Date.now(),
+            };
+            newMap.set(uniqueId, newAnnotation);
+            addToHistory("add", newAnnotation);
+          }
+          return newMap;
+        });
+        return;
+      }
 
-      if (isDragging && dragStartWordId.current !== uniqueId) {
+      // Mode sélection normale
+      if (
+        !annotationMode &&
+        isDragging &&
+        dragStartWordId.current !== uniqueId
+      ) {
         setSelectedWordIds((prev) => {
           const newSet = new Set(prev);
           newSet.add(uniqueId);
@@ -323,8 +475,10 @@ export default function StanzaAnalysis({
         });
       }
     },
-    [isDragging, annotationMode],
+    [isDragging, annotationMode, brushMode, historyIndex, annotationHistory],
   );
+
+  const handleWordMouseLeave = () => {};
 
   const handleMouseUp = () => {
     setIsDragging(false);
@@ -347,50 +501,136 @@ export default function StanzaAnalysis({
   const clearAll = () => {
     setSelectedWordIds(new Set());
     setAnnotations(new Map());
+    setAnnotationGroups(new Map());
+    setAnnotationHistory([]);
+    setHistoryIndex(-1);
   };
 
   const getAnnotationStyle = (wordId: string, isSelected: boolean) => {
     const annotation = annotations.get(wordId);
-    if (!annotation) {
-      return isSelected
-        ? "bg-black dark:bg-white text-white dark:text-black scale-[1.02]"
-        : "hover:bg-gray-100 dark:hover:bg-gray-800";
+    const groupId = annotation?.groupId;
+    const isGroupHovered = groupId && hoveredGroupId === groupId;
+    const groupHighlight = isGroupHovered
+      ? "ring-2 ring-offset-1 ring-blue-500 "
+      : "";
+
+    // Si sélectionné pour analyse
+    if (isSelected && !annotation) {
+      return "bg-black dark:bg-white text-white dark:text-black scale-[1.02]";
     }
 
-    const baseStyle = isSelected ? "scale-[1.02] " : "";
+    // Si annoté
+    if (annotation) {
+      const hasNote = annotation.note ? "border-b-2 border-dotted " : "";
 
-    switch (annotation.type) {
-      case "draft":
-        return (
-          baseStyle +
-          "bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100 italic"
-        );
-      case "important":
-        return (
-          baseStyle +
-          "bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100 font-bold"
-        );
-      case "underline":
-        return (
-          baseStyle +
-          "underline decoration-2 decoration-blue-500 underline-offset-2"
-        );
-      case "highlight":
-        return (
-          baseStyle +
-          "bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-100"
-        );
-      case "question":
-        return (
-          baseStyle +
-          "bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100"
-        );
-      default:
-        return isSelected
-          ? "bg-black dark:bg-white text-white dark:text-black scale-[1.02]"
-          : "hover:bg-gray-100 dark:hover:bg-gray-800";
+      switch (annotation.type) {
+        case "draft":
+          return (
+            groupHighlight +
+            hasNote +
+            "bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100 italic border-amber-400"
+          );
+        case "important":
+          return (
+            groupHighlight +
+            hasNote +
+            "bg-rose-100 dark:bg-rose-900/40 text-rose-900 dark:text-rose-100 font-semibold border-rose-400"
+          );
+        case "underline":
+          return (
+            groupHighlight +
+            hasNote +
+            "underline decoration-2 decoration-blue-500 dark:decoration-blue-400 underline-offset-4"
+          );
+      }
+    }
+
+    // Défaut
+    return "hover:bg-gray-100 dark:hover:bg-gray-800";
+  };
+
+  const getAnnotationCounts = () => {
+    const counts = {
+      draft: 0,
+      important: 0,
+      underline: 0,
+    };
+    annotations.forEach((ann) => {
+      counts[ann.type]++;
+    });
+    return counts;
+  };
+
+  const handleAddNote = (wordId: string, note: string) => {
+    setAnnotations((prev) => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(wordId);
+      if (existing) {
+        const updated = { ...existing, note };
+        newMap.set(wordId, updated);
+        addToHistory("edit", updated);
+      }
+      return newMap;
+    });
+    setEditingNote(null);
+  };
+
+  const handleAddNoteClick = (wordId: string) => {
+    const annotation = annotations.get(wordId);
+    if (annotation) {
+      setEditingNote({ wordId, note: annotation.note || "" });
     }
   };
+
+  const handleCreateGroup = () => {
+    if (selectedGroupWords.size === 0) return;
+
+    const groupId = `group-${Date.now()}`;
+    const newGroup: AnnotationGroup = {
+      id: groupId,
+      name: `Groupe ${annotationGroups.size + 1}`,
+      color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+      wordIds: Array.from(selectedGroupWords),
+      timestamp: Date.now(),
+    };
+
+    setAnnotationGroups((prev) => new Map(prev).set(groupId, newGroup));
+
+    // Ajouter groupId aux annotations
+    setAnnotations((prev) => {
+      const newMap = new Map(prev);
+      selectedGroupWords.forEach((wordId) => {
+        const ann = newMap.get(wordId);
+        if (ann) {
+          newMap.set(wordId, { ...ann, groupId });
+        }
+      });
+      return newMap;
+    });
+
+    setSelectedGroupWords(new Set());
+    setCreatingGroup(false);
+  };
+
+  const handleWordClickForGroup = (wordId: string) => {
+    if (!creatingGroup) return;
+
+    setSelectedGroupWords((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(wordId)) {
+        newSet.delete(wordId);
+      } else {
+        newSet.add(wordId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleGroupHover = (groupId: string | null) => {
+    setHoveredGroupId(groupId);
+  };
+
+  const annotationCounts = getAnnotationCounts();
 
   const handleSaveAnalysis = async () => {
     if (!analysis.trim()) return;
@@ -589,21 +829,78 @@ export default function StanzaAnalysis({
                 <button
                   key={wordData.uniqueId}
                   type="button"
-                  onMouseDown={() => handleWordMouseDown(wordData.uniqueId)}
-                  onMouseEnter={() => handleWordMouseEnter(wordData.uniqueId)}
+                  onMouseDown={() => {
+                    if (creatingGroup) {
+                      handleWordClickForGroup(wordData.uniqueId);
+                    } else {
+                      handleWordMouseDown(wordData.uniqueId);
+                    }
+                  }}
+                  onMouseEnter={() => {
+                    handleWordMouseEnter(wordData.uniqueId);
+                    const annotation = annotations.get(wordData.uniqueId);
+                    if (annotation?.groupId) {
+                      handleGroupHover(annotation.groupId);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    handleWordMouseLeave();
+                    handleGroupHover(null);
+                  }}
                   className={`
-                    inline-flex items-baseline px-0.5 -mx-0.5 rounded
+                    inline-flex items-baseline px-0.5 -mx-0.5 rounded relative
                     transition-all duration-150 cursor-pointer select-none
                     ${getAnnotationStyle(wordData.uniqueId, isSelected(wordData.uniqueId))}
+                    ${creatingGroup && selectedGroupWords.has(wordData.uniqueId) ? "ring-2 ring-blue-500" : ""}
                   `}
+                  onClick={(e) => {
+                    if (e.detail === 2 && annotations.has(wordData.uniqueId)) {
+                      // Double-clic pour ajouter une note
+                      handleAddNoteClick(wordData.uniqueId);
+                    }
+                  }}
                 >
-                  {wordData.prefix && (
-                    <span className="opacity-60">{wordData.prefix}</span>
-                  )}
-                  <span>{wordData.cleanWord}</span>
-                  {wordData.suffix && (
-                    <span className="opacity-60">{wordData.suffix}</span>
-                  )}
+                  <HoverCard openDelay={300}>
+                    <HoverCardTrigger asChild>
+                      <span className="flex items-baseline">
+                        {wordData.prefix && (
+                          <span className="opacity-60">{wordData.prefix}</span>
+                        )}
+                        <span>{wordData.cleanWord}</span>
+                        {wordData.suffix && (
+                          <span className="opacity-60">{wordData.suffix}</span>
+                        )}
+                        {annotations.get(wordData.uniqueId)?.note && (
+                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />
+                        )}
+                      </span>
+                    </HoverCardTrigger>
+                    {annotations.get(wordData.uniqueId)?.note && (
+                      <HoverCardContent className="w-80">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-semibold">Note</h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                handleAddNoteClick(wordData.uniqueId)
+                              }
+                              className="h-6 px-2"
+                            >
+                              <FileEdit className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {annotations.get(wordData.uniqueId)!.note}
+                          </p>
+                          <div className="text-xs text-muted-foreground">
+                            Double-clic pour éditer
+                          </div>
+                        </div>
+                      </HoverCardContent>
+                    )}
+                  </HoverCard>
                 </button>
               ))}
             </div>
@@ -645,73 +942,6 @@ export default function StanzaAnalysis({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Annotation toolbar */}
-            <div className="flex items-center gap-1 border rounded-md p-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setAnnotationMode(annotationMode === "draft" ? null : "draft")
-                }
-                className={`h-6 px-2 text-xs ${annotationMode === "draft" ? "bg-yellow-200 dark:bg-yellow-800" : ""}`}
-                title="Brouillon"
-              >
-                📝
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setAnnotationMode(
-                    annotationMode === "important" ? null : "important",
-                  )
-                }
-                className={`h-6 px-2 text-xs ${annotationMode === "important" ? "bg-red-200 dark:bg-red-900" : ""}`}
-                title="Important"
-              >
-                ❗
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setAnnotationMode(
-                    annotationMode === "underline" ? null : "underline",
-                  )
-                }
-                className={`h-6 px-2 text-xs ${annotationMode === "underline" ? "bg-blue-100 dark:bg-blue-900" : ""}`}
-                title="Souligner"
-              >
-                <span className="underline">U</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setAnnotationMode(
-                    annotationMode === "highlight" ? null : "highlight",
-                  )
-                }
-                className={`h-6 px-2 text-xs ${annotationMode === "highlight" ? "bg-green-200 dark:bg-green-800" : ""}`}
-                title="Surligner"
-              >
-                🖍️
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setAnnotationMode(
-                    annotationMode === "question" ? null : "question",
-                  )
-                }
-                className={`h-6 px-2 text-xs ${annotationMode === "question" ? "bg-purple-200 dark:bg-purple-800" : ""}`}
-                title="Question"
-              >
-                ❓
-              </Button>
-            </div>
-
             {/* Text size selector */}
             <div className="flex items-center gap-1 border rounded-md p-1">
               <Button
@@ -783,10 +1013,147 @@ export default function StanzaAnalysis({
           {/* Desktop: 2 columns */}
           <div className="hidden md:flex h-full">
             {/* Left: Text (flexible) */}
-            <div className="flex-1 border-r">
-              <ScrollArea className="h-full">
+            <div className="flex-1 border-r flex flex-col">
+              {/* Toolbar collée en haut */}
+              {showToolbar && (
+                <div className="border-b bg-muted/30 p-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1">
+                    {/* Annotation types */}
+                    <Button
+                      variant={annotationMode === "draft" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() =>
+                        setAnnotationMode(
+                          annotationMode === "draft" ? null : "draft",
+                        )
+                      }
+                      className="h-8 gap-2"
+                      title="Brouillon (1)"
+                    >
+                      <FileEdit className="w-3.5 h-3.5" />
+                      <span className="hidden lg:inline text-xs">
+                        Brouillon
+                      </span>
+                      {annotationCounts.draft > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-1 h-4 px-1 text-[10px]"
+                        >
+                          {annotationCounts.draft}
+                        </Badge>
+                      )}
+                    </Button>
+                    <Button
+                      variant={
+                        annotationMode === "important" ? "default" : "ghost"
+                      }
+                      size="sm"
+                      onClick={() =>
+                        setAnnotationMode(
+                          annotationMode === "important" ? null : "important",
+                        )
+                      }
+                      className="h-8 gap-2"
+                      title="Important (2)"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span className="hidden lg:inline text-xs">
+                        Important
+                      </span>
+                      {annotationCounts.important > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-1 h-4 px-1 text-[10px]"
+                        >
+                          {annotationCounts.important}
+                        </Badge>
+                      )}
+                    </Button>
+                    <Button
+                      variant={
+                        annotationMode === "underline" ? "default" : "ghost"
+                      }
+                      size="sm"
+                      onClick={() =>
+                        setAnnotationMode(
+                          annotationMode === "underline" ? null : "underline",
+                        )
+                      }
+                      className="h-8 gap-2"
+                      title="Souligner (3)"
+                    >
+                      <Underline className="w-3.5 h-3.5" />
+                      <span className="hidden lg:inline text-xs">
+                        Souligner
+                      </span>
+                      {annotationCounts.underline > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-1 h-4 px-1 text-[10px]"
+                        >
+                          {annotationCounts.underline}
+                        </Badge>
+                      )}
+                    </Button>
+
+                    <div className="w-px h-6 bg-border mx-1" />
+
+                    {/* Brush mode */}
+                    <Button
+                      variant={brushMode ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setBrushMode(!brushMode)}
+                      className="h-8 gap-2"
+                      title="Mode pinceau (B)"
+                    >
+                      <Brush className="w-3.5 h-3.5" />
+                      <span className="hidden lg:inline text-xs">Pinceau</span>
+                    </Button>
+
+                    {/* Groups */}
+                    <Button
+                      variant={creatingGroup ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCreatingGroup(!creatingGroup)}
+                      className="h-8 gap-2"
+                      title="Créer un groupe"
+                    >
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span className="hidden lg:inline text-xs">Groupe</span>
+                    </Button>
+                  </div>
+
+                  {/* Toggle toolbar button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowToolbar(false)}
+                    className="h-7 w-7 p-0"
+                    title="Masquer la barre d'outils"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Show toolbar button when hidden */}
+              {!showToolbar && (
+                <div className="border-b bg-muted/10 p-1 flex justify-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowToolbar(true)}
+                    className="h-6 text-xs gap-1"
+                  >
+                    <GripVertical className="w-3 h-3" />
+                    Outils d'annotation
+                  </Button>
+                </div>
+              )}
+
+              <ScrollArea className="flex-1">
                 <div className="p-8">
-                  <div className="max-w-3xl">
+                  <div className="max-w-3xl mx-auto">
                     <div
                       className={`leading-relaxed ${
                         textSize === "small"
@@ -819,23 +1186,68 @@ export default function StanzaAnalysis({
               style={{ width: `${sidebarWidth}px` }}
             >
               <div className="flex-1 flex flex-col p-6 gap-4 min-h-0">
-                {/* Annotation info */}
-                {annotationMode && (
+                {/* Creating group mode */}
+                {creatingGroup && (
                   <div className="bg-card rounded-lg border p-3 flex-shrink-0">
                     <p className="text-xs font-medium text-muted-foreground mb-1">
-                      Mode annotation :{" "}
-                      {annotationMode === "draft"
-                        ? "📝 Brouillon"
-                        : annotationMode === "important"
-                          ? "❗ Important"
-                          : annotationMode === "underline"
-                            ? "Souligné"
-                            : annotationMode === "highlight"
-                              ? "🖍️ Surligné"
-                              : "❓ Question"}
+                      Mode création de groupe
                     </p>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Cliquez sur les mots à regrouper (
+                      {selectedGroupWords.size} sélectionné
+                      {selectedGroupWords.size > 1 ? "s" : ""})
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleCreateGroup}
+                        disabled={selectedGroupWords.size < 2}
+                        className="h-7 text-xs"
+                      >
+                        Créer le groupe
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setCreatingGroup(false);
+                          setSelectedGroupWords(new Set());
+                        }}
+                        className="h-7 text-xs"
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Annotation info */}
+                {annotationMode && !creatingGroup && (
+                  <div className="bg-card rounded-lg border p-3 flex-shrink-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      {annotationMode === "draft" && (
+                        <FileEdit className="w-4 h-4 text-amber-600" />
+                      )}
+                      {annotationMode === "important" && (
+                        <AlertTriangle className="w-4 h-4 text-rose-600" />
+                      )}
+                      {annotationMode === "underline" && (
+                        <Underline className="w-4 h-4 text-blue-600" />
+                      )}
+                      <p className="text-xs font-medium">
+                        Mode :{" "}
+                        {annotationMode === "draft"
+                          ? "Brouillon"
+                          : annotationMode === "important"
+                            ? "Important"
+                            : "Souligné"}
+                        {brushMode && " (Pinceau)"}
+                      </p>
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      Cliquez sur les mots pour les annoter
+                      {brushMode
+                        ? "Maintenez et glissez pour annoter plusieurs mots"
+                        : "Cliquez sur les mots • Double-clic pour ajouter une note"}
                     </p>
                   </div>
                 )}
@@ -855,7 +1267,7 @@ export default function StanzaAnalysis({
                         onClick={clearAll}
                         className="h-6 text-xs"
                       >
-                        Effacer
+                        Tout effacer
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -1278,6 +1690,104 @@ export default function StanzaAnalysis({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Groups display in sidebar when creating */}
+      {creatingGroup && annotationGroups.size > 0 && (
+        <div className="fixed right-4 top-20 w-64 bg-card border shadow-xl z-40 rounded-lg">
+          <div className="p-3 border-b">
+            <h4 className="text-sm font-semibold flex items-center gap-2">
+              <Link2 className="w-4 h-4" />
+              Groupes existants
+            </h4>
+          </div>
+          <ScrollArea className="max-h-96">
+            <div className="p-3 space-y-2">
+              {Array.from(annotationGroups.values()).map((group) => (
+                <div
+                  key={group.id}
+                  className="bg-muted/30 rounded-lg p-2 hover:bg-muted/50 cursor-pointer transition-colors"
+                  onMouseEnter={() => handleGroupHover(group.id)}
+                  onMouseLeave={() => handleGroupHover(null)}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: group.color }}
+                    />
+                    <span className="text-xs font-medium truncate">
+                      {group.name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground ml-auto">
+                      {group.wordIds.length}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {group.wordIds.slice(0, 3).map((wordId) => {
+                      const wordData = allWords.find(
+                        (w) => w.uniqueId === wordId,
+                      );
+                      return (
+                        <span
+                          key={wordId}
+                          className="text-[10px] px-1.5 py-0.5 bg-muted rounded"
+                        >
+                          {wordData?.cleanWord || "?"}
+                        </span>
+                      );
+                    })}
+                    {group.wordIds.length > 3 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        +{group.wordIds.length - 3}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Note editing dialog */}
+      {editingNote && (
+        <Dialog open={!!editingNote} onOpenChange={() => setEditingNote(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingNote?.note ? "Modifier la note" : "Ajouter une note"}
+              </DialogTitle>
+              <DialogDescription>
+                Note personnelle sur cette annotation (double-clic sur le mot ou
+                clic sur 📝)
+              </DialogDescription>
+            </DialogHeader>
+            <textarea
+              value={editingNote?.note || ""}
+              onChange={(e) =>
+                setEditingNote(
+                  editingNote ? { ...editingNote, note: e.target.value } : null,
+                )
+              }
+              placeholder="Votre note..."
+              className="w-full h-24 px-3 py-2 text-sm bg-background border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              autoFocus
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingNote(null)}>
+                Annuler
+              </Button>
+              <Button
+                onClick={() =>
+                  editingNote &&
+                  handleAddNote(editingNote.wordId, editingNote.note)
+                }
+              >
+                Enregistrer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
