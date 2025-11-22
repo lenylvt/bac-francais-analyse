@@ -409,10 +409,19 @@ export default function StanzaAnalysis({
 
   const handleSubmitToAI = async () => {
     try {
-      // Combine all saved analyses
-      const combinedWords = savedAnalyses.flatMap((a) => a.selectedWords);
-      const combinedAnalysis = savedAnalyses
-        .map((a) => a.analysis)
+      // Reload analyses from DB to get the latest data
+      const latestAnalyses = await getUserAnalysesForPoem(userId, poem.id);
+      const incompleteAnalyses = latestAnalyses.filter((a) => !a.completed);
+
+      if (incompleteAnalyses.length === 0) {
+        alert("Aucune analyse à soumettre");
+        return;
+      }
+
+      // Combine all analyses from DB (not just local state)
+      const combinedWords = incompleteAnalyses.flatMap((a) => a.selectedWords);
+      const combinedAnalysis = incompleteAnalyses
+        .map((a, index) => `### Analyse ${index + 1}\n${a.analysis}`)
         .join("\n\n");
 
       // Convert uniqueIds to clean words for AI
@@ -430,7 +439,7 @@ export default function StanzaAnalysis({
       };
 
       // Mark all as completed in DB
-      for (const dbAnalysis of dbAnalyses) {
+      for (const dbAnalysis of incompleteAnalyses) {
         await updateAnalysis(dbAnalysis.$id, {
           completed: true,
         });
@@ -829,7 +838,7 @@ export default function StanzaAnalysis({
                       <Button
                         onClick={handleSubmitToAI}
                         disabled={isLoading}
-                        className="w-full bg-gradient-to-r from-black to-gray-800"
+                        className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                       >
                         {isLoading ? (
                           <>
@@ -907,7 +916,7 @@ export default function StanzaAnalysis({
             </Button>
             <Button
               onClick={handleResumeAnalysis}
-              className="w-full sm:w-auto bg-black hover:bg-black/90"
+              className="w-full sm:w-auto"
             >
               Reprendre
             </Button>
@@ -994,7 +1003,7 @@ export default function StanzaAnalysis({
               <Button
                 onClick={handleSubmitToAI}
                 disabled={isLoading}
-                className="bg-gradient-to-r from-black to-gray-800 hover:from-gray-900 hover:to-gray-700 gap-2"
+                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2"
               >
                 {isLoading ? (
                   <>
