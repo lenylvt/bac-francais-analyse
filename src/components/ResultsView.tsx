@@ -23,7 +23,6 @@ interface ResultsViewProps {
   evaluations: AIEvaluation[];
   answers: UserAnswer[];
   averageScore: number;
-  debugPrompt?: string;
   onRestart: () => void;
   onHome: () => void;
 }
@@ -33,13 +32,11 @@ export default function ResultsView({
   evaluations,
   answers,
   averageScore,
-  debugPrompt,
   onRestart,
   onHome,
 }: ResultsViewProps) {
   const { theme, toggleTheme } = useTheme();
   const [expandedAnalyses, setExpandedAnalyses] = useState<number[]>([0]);
-  const [showDebug, setShowDebug] = useState(false);
 
   const getScoreColor = (score: number) => {
     if (score >= 16) return "text-green-600 dark:text-green-400";
@@ -149,35 +146,6 @@ export default function ResultsView({
               évaluée{evaluations.length > 1 ? "s" : ""}
             </Badge>
           </div>
-
-          {/* Debug card */}
-          {debugPrompt && (
-            <Card className="border-2 border-purple-500/30 bg-purple-50/50 dark:bg-purple-950/20">
-              <CardHeader
-                className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => setShowDebug(!showDebug)}
-              >
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Code className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    Prompt envoyé à l'IA
-                  </CardTitle>
-                  {showDebug ? (
-                    <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  )}
-                </div>
-              </CardHeader>
-              {showDebug && (
-                <CardContent>
-                  <pre className="text-xs bg-muted/50 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-words">
-                    {debugPrompt}
-                  </pre>
-                </CardContent>
-              )}
-            </Card>
-          )}
 
           {/* Chaque analyse individuellement */}
           {evaluations.map((evaluation, index) => {

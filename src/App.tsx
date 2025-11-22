@@ -29,7 +29,6 @@ function App() {
   const [viewingResult, setViewingResult] = useState<ResultDocument | null>(
     null,
   );
-  const [debugPrompt, setDebugPrompt] = useState<string>("");
 
   useEffect(() => {
     checkAuth();
@@ -169,7 +168,7 @@ function App() {
       setAnswers(answers);
       setEvaluations(evaluations);
       setAverageScore(result.averageScore);
-      setDebugPrompt(result.debugPrompt || "");
+
       setScreen("results");
     } catch (error) {
       console.error("Erreur lors de l'évaluation:", error);
@@ -332,7 +331,6 @@ function App() {
           evaluations={evaluations}
           answers={answers}
           averageScore={averageScore}
-          debugPrompt={debugPrompt}
           onRestart={handleRestart}
           onHome={handleHome}
         />
