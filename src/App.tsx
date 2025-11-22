@@ -20,10 +20,8 @@ function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [screen, setScreen] = useState<Screen>("selector");
-  const [, setSelectedPoemId] = useState<string | null>(null);
   const [selectedPoem, setSelectedPoem] = useState<PoemDocument | null>(null);
   const [mode, setMode] = useState<Mode>("complete");
-  const [, setCurrentStanzaIndex] = useState(0);
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
   const [evaluations, setEvaluations] = useState<AIEvaluation[]>([]);
   const [averageScore, setAverageScore] = useState(0);
@@ -85,7 +83,6 @@ function App() {
     try {
       const poem = await getPoemById(poemId);
       if (poem) {
-        setSelectedPoemId(poemId);
         setSelectedPoem(poem);
         setScreen("mode");
       }
@@ -97,7 +94,6 @@ function App() {
 
   const handleModeSelect = (selectedMode: Mode) => {
     setMode(selectedMode);
-    setCurrentStanzaIndex(0);
     setAnswers([]);
     setEvaluations([]);
     setScreen("quiz");
@@ -180,29 +176,24 @@ function App() {
 
   const handleBackFromMode = () => {
     setScreen("selector");
-    setSelectedPoemId(null);
     setSelectedPoem(null);
   };
 
   const handleBackFromQuiz = () => {
     setScreen("mode");
-    setCurrentStanzaIndex(0);
     setAnswers([]);
     setEvaluations([]);
   };
 
   const handleRestart = () => {
     setScreen("mode");
-    setCurrentStanzaIndex(0);
     setAnswers([]);
     setEvaluations([]);
   };
 
   const handleHome = () => {
     setScreen("selector");
-    setSelectedPoemId(null);
     setSelectedPoem(null);
-    setCurrentStanzaIndex(0);
     setAnswers([]);
     setEvaluations([]);
     setViewingResult(null);

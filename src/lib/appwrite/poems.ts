@@ -32,7 +32,7 @@ export async function getAllPoems(): Promise<PoemDocument[]> {
       [Query.orderAsc("title"), Query.limit(100)],
     );
     return response.documents as unknown as PoemDocument[];
-  } catch (error: any) {
+  } catch {
     return [];
   }
 }
@@ -50,7 +50,7 @@ export async function getPoemById(
       poemId,
     );
     return document as unknown as PoemDocument;
-  } catch (error: any) {
+  } catch {
     return null;
   }
 }
@@ -118,7 +118,7 @@ export async function searchPoems(query: string): Promise<PoemDocument[]> {
       [Query.search("title", query), Query.limit(50)],
     );
     return response.documents as unknown as PoemDocument[];
-  } catch (error: any) {
+  } catch {
     return [];
   }
 }
