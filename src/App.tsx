@@ -41,12 +41,19 @@ function App() {
   const poemForAnalysis = useMemo(() => {
     if (!selectedPoem) return null;
 
-    const stanzas = selectedPoem.fullText
+    const allStanzas = selectedPoem.fullText
       .split("\n\n")
       .map((stanzaText, idx) => ({
         id: idx + 1,
         lines: stanzaText.split("\n").filter((line) => line.trim()),
       }));
+
+    // En mode rapide, sélectionner aléatoirement 3 strophes
+    let stanzas = allStanzas;
+    if (mode === "quick" && allStanzas.length > 3) {
+      const shuffled = [...allStanzas].sort(() => Math.random() - 0.5);
+      stanzas = shuffled.slice(0, 3).sort((a, b) => a.id - b.id);
+    }
 
     return {
       id: selectedPoem.$id,
@@ -58,7 +65,7 @@ function App() {
       stanzas: stanzas,
       linearAnalysis: [],
     };
-  }, [selectedPoem]);
+  }, [selectedPoem, mode]);
 
   const checkAuth = async () => {
     try {

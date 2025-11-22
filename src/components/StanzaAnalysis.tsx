@@ -42,6 +42,7 @@ import {
   ChevronUp,
   Eraser,
   Trash2,
+  Smartphone,
 } from "lucide-react";
 import type { Poem } from "@/types";
 import {
@@ -53,6 +54,7 @@ import {
   type SavedAnalysisDocument,
 } from "@/lib/appwrite/database";
 import { useTheme } from "@/hooks/useTheme";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface StanzaAnalysisProps {
   poem: Poem;
@@ -133,6 +135,7 @@ export default function StanzaAnalysis({
   isLoading = false,
 }: StanzaAnalysisProps) {
   const { theme, toggleTheme } = useTheme();
+  const isMobile = useIsMobile();
   const stanza = poem.stanzas[stanzaIndex];
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(
     new Set(),
@@ -998,6 +1001,23 @@ export default function StanzaAnalysis({
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
+      {isMobile && (
+        <div className="bg-yellow-50 dark:bg-yellow-950/30 border-b border-yellow-200 dark:border-yellow-800 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <Smartphone className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
+            <div className="flex-1 text-sm">
+              <p className="font-medium text-yellow-800 dark:text-yellow-300 mb-1">
+                Mode mobile détecté
+              </p>
+              <p className="text-yellow-700 dark:text-yellow-400 text-xs">
+                Les outils d'annotation ne sont pas disponibles sur mobile. Vous
+                pouvez consulter les analyses, demander des évaluations et voir
+                vos résultats.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="border-b bg-card">
         <div className="max-w-[1920px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
@@ -1090,7 +1110,7 @@ export default function StanzaAnalysis({
         <div className="h-full max-w-[1920px] mx-auto">
           <div className="hidden md:flex h-full">
             <div className="flex-1 border-r flex flex-col">
-              {showToolbar && (
+              {!isMobile && showToolbar && (
                 <div className="border-b bg-muted/30 p-2 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1 flex-wrap">
                     <Button
@@ -1267,7 +1287,7 @@ export default function StanzaAnalysis({
                       </PopoverContent>
                     </Popover>
 
-                    {drawingMode && (
+                    {!isMobile && drawingMode && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1293,7 +1313,7 @@ export default function StanzaAnalysis({
                 </div>
               )}
 
-              {!showToolbar && (
+              {!isMobile && !showToolbar && (
                 <div className="border-b bg-muted/10 p-1 flex justify-center">
                   <Button
                     variant="ghost"
@@ -1313,7 +1333,7 @@ export default function StanzaAnalysis({
                     className="max-w-3xl mx-auto relative"
                     ref={textContainerRef}
                   >
-                    {drawingMode && (
+                    {!isMobile && drawingMode && (
                       <canvas
                         ref={canvasRef}
                         width={800}
@@ -1434,7 +1454,10 @@ export default function StanzaAnalysis({
 
                     <div
                       className={`poem-text leading-relaxed relative z-10 select-none ${textSize === "small" ? "text-[22px]" : textSize === "large" ? "text-[29px]" : "text-[26px]"}`}
-                      style={{ pointerEvents: drawingMode ? "none" : "auto" }}
+                      style={{
+                        pointerEvents:
+                          drawingMode || isMobile ? "none" : "auto",
+                      }}
                     >
                       {stanzasToShow.map((s, idx) => renderStanza(s, idx + 1))}
                     </div>
