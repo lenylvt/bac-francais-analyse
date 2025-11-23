@@ -107,7 +107,7 @@ function App() {
   const handleMultipleAnalysesSubmit = async (
     analyses: { selectedWords: string[]; analysis: string }[],
   ) => {
-    if (!poemForAnalysis || !user) return;
+    if (!poemForAnalysis || !user || !selectedPoem) return;
 
     setIsEvaluating(true);
 
