@@ -55,6 +55,10 @@ import {
 } from "@/lib/appwrite/database";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  CursorProvider,
+  Cursor,
+} from "@/components/animate-ui/components/animate/cursor";
 
 interface StanzaAnalysisProps {
   poem: Poem;
@@ -1329,139 +1333,162 @@ export default function StanzaAnalysis({
 
               <ScrollArea className="flex-1">
                 <div className="p-8 relative">
-                  <div
-                    className="max-w-3xl mx-auto relative"
-                    ref={textContainerRef}
-                  >
-                    {!isMobile && drawingMode && (
-                      <canvas
-                        ref={canvasRef}
-                        width={800}
-                        height={1200}
-                        className="absolute top-0 left-0 pointer-events-auto z-20"
-                        onMouseDown={handleCanvasMouseDown}
-                        onMouseMove={handleCanvasMouseMove}
-                        onMouseUp={handleCanvasMouseUp}
-                        onMouseLeave={handleCanvasMouseUp}
-                        style={{
-                          cursor: eraserMode
-                            ? "pointer"
-                            : drawingMode
-                              ? "crosshair"
-                              : "default",
-                        }}
-                      />
-                    )}
-
-                    {stickyNotes.map((note) => {
-                      const isCollapsed = note.height < 100;
-                      const isDragging = draggedNoteId === note.id;
-                      return (
-                        <div
-                          key={note.id}
-                          className={`absolute z-30 rounded-lg select-none ${
-                            isDragging
-                              ? "shadow-2xl scale-105 cursor-grabbing"
-                              : "shadow-lg hover:shadow-xl transition-shadow duration-150"
-                          }`}
+                  <CursorProvider>
+                    <Cursor
+                      className={
+                        annotationMode === "highlight" ||
+                        annotationMode === "underline" ||
+                        drawingMode
+                          ? selectedColor === "yellow"
+                            ? "text-yellow-400"
+                            : selectedColor === "green"
+                              ? "text-green-400"
+                              : selectedColor === "blue"
+                                ? "text-blue-400"
+                                : selectedColor === "pink"
+                                  ? "text-pink-400"
+                                  : selectedColor === "orange"
+                                    ? "text-orange-400"
+                                    : "text-purple-400"
+                          : "text-foreground"
+                      }
+                    />
+                    <div
+                      className="max-w-3xl mx-auto relative"
+                      ref={textContainerRef}
+                    >
+                      {!isMobile && drawingMode && (
+                        <canvas
+                          ref={canvasRef}
+                          width={800}
+                          height={1200}
+                          className="absolute top-0 left-0 pointer-events-auto z-20"
+                          onMouseDown={handleCanvasMouseDown}
+                          onMouseMove={handleCanvasMouseMove}
+                          onMouseUp={handleCanvasMouseUp}
+                          onMouseLeave={handleCanvasMouseUp}
                           style={{
-                            left: note.x,
-                            top: note.y,
-                            width: note.width,
-                            height: note.height,
-                            backgroundColor:
-                              note.color === "yellow"
-                                ? "#fef08a"
-                                : note.color === "green"
-                                  ? "#86efac"
-                                  : note.color === "blue"
-                                    ? "#93c5fd"
-                                    : note.color === "pink"
-                                      ? "#f9a8d4"
-                                      : note.color === "orange"
-                                        ? "#fdba74"
-                                        : "#d8b4fe",
-                            border: isDragging
-                              ? "2px solid rgba(0,0,0,0.3)"
-                              : "1px solid rgba(0,0,0,0.1)",
+                            cursor: eraserMode
+                              ? "pointer"
+                              : drawingMode
+                                ? "crosshair"
+                                : "default",
                           }}
-                        >
+                        />
+                      )}
+
+                      {stickyNotes.map((note) => {
+                        const isCollapsed = note.height < 100;
+                        const isDragging = draggedNoteId === note.id;
+                        return (
                           <div
-                            className="flex items-center justify-between p-2 border-b border-black/10 bg-black/5 group cursor-grab active:cursor-grabbing"
-                            onMouseDown={(e) => {
-                              if (e.button === 0) {
-                                handleNoteDragStart(note.id, e);
-                              }
+                            key={note.id}
+                            className={`absolute z-30 rounded-lg select-none ${
+                              isDragging
+                                ? "shadow-2xl scale-105 cursor-grabbing"
+                                : "shadow-lg hover:shadow-xl transition-shadow duration-150"
+                            }`}
+                            style={{
+                              left: note.x,
+                              top: note.y,
+                              width: note.width,
+                              height: note.height,
+                              backgroundColor:
+                                note.color === "yellow"
+                                  ? "#fef08a"
+                                  : note.color === "green"
+                                    ? "#86efac"
+                                    : note.color === "blue"
+                                      ? "#93c5fd"
+                                      : note.color === "pink"
+                                        ? "#f9a8d4"
+                                        : note.color === "orange"
+                                          ? "#fdba74"
+                                          : "#d8b4fe",
+                              border: isDragging
+                                ? "2px solid rgba(0,0,0,0.3)"
+                                : "1px solid rgba(0,0,0,0.1)",
                             }}
                           >
-                            <div className="flex items-center gap-1">
-                              <GripVertical className="w-3.5 h-3.5 text-black/40 group-hover:text-black/60" />
+                            <div
+                              className="flex items-center justify-between p-2 border-b border-black/10 bg-black/5 group cursor-grab active:cursor-grabbing"
+                              onMouseDown={(e) => {
+                                if (e.button === 0) {
+                                  handleNoteDragStart(note.id, e);
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-1">
+                                <GripVertical className="w-3.5 h-3.5 text-black/40 group-hover:text-black/60" />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 px-1.5 gap-1 hover:bg-black/10 rounded"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUpdateStickyNote(note.id, {
+                                      height: isCollapsed ? 150 : 35,
+                                    });
+                                  }}
+                                  title={isCollapsed ? "Déplier" : "Replier"}
+                                >
+                                  {isCollapsed ? (
+                                    <ChevronDown className="w-3 h-3" />
+                                  ) : (
+                                    <ChevronUp className="w-3 h-3" />
+                                  )}
+                                  <span className="text-[10px] font-medium">
+                                    {isCollapsed ? "Ouvrir" : "Fermer"}
+                                  </span>
+                                </Button>
+                              </div>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-5 px-1.5 gap-1 hover:bg-black/10 rounded"
+                                className="h-5 w-5 p-0 hover:bg-red-500/20 hover:text-red-700 rounded"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleUpdateStickyNote(note.id, {
-                                    height: isCollapsed ? 150 : 35,
-                                  });
+                                  handleDeleteStickyNote(note.id);
                                 }}
-                                title={isCollapsed ? "Déplier" : "Replier"}
+                                title="Supprimer"
                               >
-                                {isCollapsed ? (
-                                  <ChevronDown className="w-3 h-3" />
-                                ) : (
-                                  <ChevronUp className="w-3 h-3" />
-                                )}
-                                <span className="text-[10px] font-medium">
-                                  {isCollapsed ? "Ouvrir" : "Fermer"}
-                                </span>
+                                <X className="w-3.5 h-3.5" />
                               </Button>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0 hover:bg-red-500/20 hover:text-red-700 rounded"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteStickyNote(note.id);
-                              }}
-                              title="Supprimer"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </Button>
+                            {!isCollapsed && (
+                              <Textarea
+                                value={note.content}
+                                onChange={(e) =>
+                                  handleUpdateStickyNote(note.id, {
+                                    content: e.target.value,
+                                  })
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                placeholder="Écrivez votre note ici..."
+                                className="w-full h-[calc(100%-37px)] bg-transparent border-none resize-none text-xs p-3 focus-visible:ring-0 placeholder:text-black/40"
+                                style={{
+                                  fontFamily: "inherit",
+                                  lineHeight: "1.5",
+                                }}
+                              />
+                            )}
                           </div>
-                          {!isCollapsed && (
-                            <Textarea
-                              value={note.content}
-                              onChange={(e) =>
-                                handleUpdateStickyNote(note.id, {
-                                  content: e.target.value,
-                                })
-                              }
-                              onClick={(e) => e.stopPropagation()}
-                              placeholder="Écrivez votre note ici..."
-                              className="w-full h-[calc(100%-37px)] bg-transparent border-none resize-none text-xs p-3 focus-visible:ring-0 placeholder:text-black/40"
-                              style={{
-                                fontFamily: "inherit",
-                                lineHeight: "1.5",
-                              }}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
 
-                    <div
-                      className={`poem-text leading-relaxed relative z-10 select-none ${textSize === "small" ? "text-[22px]" : textSize === "large" ? "text-[29px]" : "text-[26px]"}`}
-                      style={{
-                        pointerEvents:
-                          drawingMode || isMobile ? "none" : "auto",
-                      }}
-                    >
-                      {stanzasToShow.map((s, idx) => renderStanza(s, idx + 1))}
+                      <div
+                        className={`poem-text leading-relaxed relative z-10 select-none ${textSize === "small" ? "text-[22px]" : textSize === "large" ? "text-[29px]" : "text-[26px]"}`}
+                        style={{
+                          pointerEvents:
+                            drawingMode || isMobile ? "none" : "auto",
+                        }}
+                      >
+                        {stanzasToShow.map((s, idx) =>
+                          renderStanza(s, idx + 1),
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </CursorProvider>
                 </div>
               </ScrollArea>
             </div>
