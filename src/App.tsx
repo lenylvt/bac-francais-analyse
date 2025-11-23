@@ -13,6 +13,7 @@ import { createResult, type ResultDocument } from "@/lib/appwrite/results";
 import { usePreloadAPI } from "@/hooks/usePreloadAPI";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
+import { MultiStepLoader } from "@/components/ui/multi-step-loader";
 
 type Screen = "selector" | "mode" | "quiz" | "results" | "progress";
 
@@ -29,6 +30,7 @@ function App() {
   const [viewingResult, setViewingResult] = useState<ResultDocument | null>(
     null,
   );
+  const [screenFading, setScreenFading] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -103,9 +105,9 @@ function App() {
   };
 
   const handleMultipleAnalysesSubmit = async (
-    analyses: Array<{ selectedWords: string[]; analysis: string }>,
+    analyses: { selectedWords: string[]; analysis: string }[],
   ) => {
-    if (!selectedPoem) return;
+    if (!poemForAnalysis || !user) return;
 
     setIsEvaluating(true);
 
@@ -176,7 +178,15 @@ function App() {
       setEvaluations(evaluations);
       setAverageScore(result.averageScore);
 
-      setScreen("results");
+      // Smooth transition: fade out then change screen
+      setScreenFading(true);
+      setTimeout(() => {
+        setScreen("results");
+        setIsEvaluating(false);
+        setTimeout(() => {
+          setScreenFading(false);
+        }, 50);
+      }, 1000);
     } catch (error) {
       console.error("Erreur lors de l'évaluation:", error);
       alert(
@@ -194,12 +204,6 @@ function App() {
   };
 
   const handleBackFromQuiz = () => {
-    setScreen("mode");
-    setAnswers([]);
-    setEvaluations([]);
-  };
-
-  const handleRestart = () => {
     setScreen("mode");
     setAnswers([]);
     setEvaluations([]);
@@ -270,18 +274,37 @@ function App() {
   if (screen === "quiz" && poemForAnalysis && user) {
     return (
       <>
-        <StanzaAnalysis
-          poem={poemForAnalysis}
-          stanzaIndex={0}
-          totalStanzas={poemForAnalysis.stanzas.length}
-          mode={mode}
-          userId={user.$id}
-          onSubmit={handleMultipleAnalysesSubmit}
-          onBack={handleBackFromQuiz}
-          isLoading={isEvaluating}
+        <div
+          className={`transition-opacity duration-500 ${screenFading ? "opacity-0" : "opacity-100"}`}
+        >
+          <StanzaAnalysis
+            poem={poemForAnalysis}
+            stanzaIndex={0}
+            totalStanzas={poemForAnalysis.stanzas.length}
+            mode={mode}
+            userId={user.$id}
+            onSubmit={handleMultipleAnalysesSubmit}
+            onBack={handleBackFromQuiz}
+            isLoading={isEvaluating}
+          />
+        </div>
+        <MultiStepLoader
+          loadingStates={[
+            { text: "📖 Lecture de tes analyses..." },
+            { text: "🤔 Compréhension du contexte littéraire..." },
+            { text: "✍️ Évaluation de la qualité d'écriture..." },
+            { text: "🎨 Analyse des figures de style..." },
+            { text: "📊 Calcul des notes..." },
+            { text: "💭 Préparation des feedbacks..." },
+            { text: "✨ Finalisation de l'évaluation..." },
+            { text: "🎉 C'est prêt !" },
+          ]}
+          loading={isEvaluating}
+          duration={2000}
+          loop={false}
         />
         {isEvaluating && (
-          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center opacity-0 pointer-events-none">
             <div className="bg-card rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
               <div className="flex flex-col items-center space-y-4">
                 <Loader2 className="w-12 h-12 animate-spin text-primary" />
@@ -326,8 +349,8 @@ function App() {
           evaluations={viewingResult.evaluations}
           answers={viewingResult.answers}
           averageScore={viewingResult.averageScore}
-          onRestart={handleRestart}
           onHome={handleHome}
+          skipIntro={true}
         />
       );
     } else if (poemForAnalysis) {
@@ -338,7 +361,6 @@ function App() {
           evaluations={evaluations}
           answers={answers}
           averageScore={averageScore}
-          onRestart={handleRestart}
           onHome={handleHome}
         />
       );

@@ -1665,7 +1665,7 @@ export default function StanzaAnalysis({
                 ) : (
                   <Sparkles className="w-4 h-4" />
                 )}
-                Envoyer à l'IA ({savedAnalyses.length})
+                Finir le devoir ({savedAnalyses.length})
               </Button>
             )}
           </DialogFooter>
