@@ -103,8 +103,8 @@ export default function Auth({ onSuccess }: AuthProps) {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-black mb-4">
-            <BookOpen className="w-7 h-7 text-white" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary mb-4">
+            <BookOpen className="w-7 h-7 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold mb-1">BAC Français</h1>
           <p className="text-muted-foreground">Analyse linéaire interactive</p>
@@ -203,7 +203,7 @@ export default function Auth({ onSuccess }: AuthProps) {
                 <Button
                   type="submit"
                   disabled={loading || otp.length !== 6}
-                  className="w-full h-11 bg-black hover:bg-black/90"
+                  className="w-full h-11"
                 >
                   {loading ? (
                     <>

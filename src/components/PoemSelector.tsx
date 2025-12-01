@@ -23,16 +23,14 @@ import {
   BarChart3,
   Moon,
   Sun,
-  Plus,
   FileText,
   Smartphone,
 } from "lucide-react";
-import { logout, getCurrentUser, isAdmin } from "@/lib/appwrite/auth";
+import { logout, getCurrentUser } from "@/lib/appwrite/auth";
 import { getUserStats, getIncompleteAnalyses } from "@/lib/appwrite/database";
-import { getAllPoems, type PoemDocument } from "@/lib/appwrite/poems";
+import { getAllPoemsProgressive, type PoemDocument } from "@/lib/appwrite/poems";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsMobile } from "@/hooks/use-mobile";
-import CommunityRequestDialog from "./CommunityRequestDialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -54,15 +52,14 @@ export default function PoemSelector({
     averageScore: 0,
   });
   const [userEmail, setUserEmail] = useState("");
-  const [isUserAdmin, setIsUserAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPoemsLoading, setIsPoemsLoading] = useState(true);
   const [incompletePoems, setIncompletePoems] = useState<Set<string>>(
     new Set(),
   );
   const [dbPoems, setDbPoems] = useState<PoemDocument[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
-  const [showCommunityDialog, setShowCommunityDialog] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState<{
     title: string;
     analysis: string;
@@ -104,8 +101,6 @@ export default function PoemSelector({
   const loadUserData = async () => {
     try {
       const user = await getCurrentUser();
-      const adminStatus = await isAdmin();
-      setIsUserAdmin(adminStatus);
       if (user) {
         setUserEmail(user.email);
         const userStats = await getUserStats(user.$id);
@@ -120,14 +115,26 @@ export default function PoemSelector({
 
   const loadPoemsFromDB = async () => {
     try {
-      const poems = await getAllPoems();
-      setDbPoems(poems);
+      setIsPoemsLoading(true);
+      setDbPoems([]); // Reset poems
+
+      const loadedPoems: PoemDocument[] = [];
+
+      // Load poems progressively and display them as they arrive (sorted)
+      await getAllPoemsProgressive((poem) => {
+        loadedPoems.push(poem);
+        // Sort and update display after each poem is added
+        const sorted = [...loadedPoems].sort((a, b) => a.title.localeCompare(b.title));
+        setDbPoems(sorted);
+      });
+
+      setIsPoemsLoading(false);
 
       // Check for incomplete analyses after poems are loaded
       const user = await getCurrentUser();
-      if (user && poems.length > 0) {
+      if (user && loadedPoems.length > 0) {
         const incomplete = new Set<string>();
-        for (const poem of poems) {
+        for (const poem of loadedPoems) {
           const analyses = await getIncompleteAnalyses(user.$id, poem.$id);
           if (analyses.length > 0) {
             incomplete.add(poem.$id);
@@ -138,6 +145,7 @@ export default function PoemSelector({
       }
     } catch (error) {
       console.error("Error loading poems from DB:", error);
+      setIsPoemsLoading(false);
     }
   };
 
@@ -231,41 +239,11 @@ export default function PoemSelector({
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1400px] mx-auto px-6 md:px-12 py-8">
           {/* Title */}
-          <div className="mb-6 flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold mb-1">Poèmes</h2>
-              <p className="text-sm text-muted-foreground">
-                Sélectionnez un poème pour commencer votre analyse
-              </p>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <Button
-                onClick={() => setShowCommunityDialog(true)}
-                className="gap-2"
-                variant="outline"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Demande communautaire</span>
-              </Button>
-              {isUserAdmin && (
-                <Button
-                  onClick={() => {
-                    const urls = prompt(
-                      "Entrez les URLs séparées par des virgules:",
-                    );
-                    if (urls) {
-                      // TODO: Implement multi-import logic
-                      alert("Multi-import en cours de développement");
-                    }
-                  }}
-                  className="gap-2"
-                  variant="default"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span className="hidden sm:inline">Multi Import</span>
-                </Button>
-              )}
-            </div>
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold mb-1">Poèmes</h2>
+            <p className="text-sm text-muted-foreground">
+              Sélectionnez un poème pour commencer votre analyse
+            </p>
           </div>
 
           {/* Search & Filters */}
@@ -428,8 +406,16 @@ export default function PoemSelector({
                 );
               })}
 
+            {/* Loading state */}
+            {isPoemsLoading && (
+              <div className="text-center py-12">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Chargement des poèmes...</p>
+              </div>
+            )}
+
             {/* No results message */}
-            {dbPoems.filter((poem) => {
+            {!isPoemsLoading && dbPoems.filter((poem) => {
               const matchesSearch =
                 searchQuery === "" ||
                 poem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -459,15 +445,6 @@ export default function PoemSelector({
           </div>
         </div>
       </div>
-
-      {/* Community Request Dialog */}
-      <CommunityRequestDialog
-        open={showCommunityDialog}
-        onOpenChange={setShowCommunityDialog}
-        onPoemAdded={() => {
-          loadPoemsFromDB();
-        }}
-      />
 
       {/* Analysis Modal */}
       <Dialog

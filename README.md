@@ -1,21 +1,33 @@
 # 📚 BAC Français - Analyse Linéaire Interactive
 
-Application web moderne pour analyser des poèmes avec assistance IA et sauvegarde automatique.
+Application web moderne pour analyser des poèmes avec assistance IA, sauvegarde automatique et intégration **Craft Collections API**.
+
+> 🏆 **Submitted for [Craft Winter Challenge 2024](https://craft.do)** - See full submission: [WINTER_CHALLENGE_POST.md](./WINTER_CHALLENGE_POST.md)
+
+**🌐 Live Demo:** [https://your-app-url.com](https://your-app-url.com)
+**📦 GitHub:** [https://github.com/yourusername/bac-francais](https://github.com/yourusername/bac-francais)
 
 ## ✨ Fonctionnalités
 
+### 🎯 Pour les Étudiants
 - **Authentification OTP** : Connexion sécurisée sans mot de passe
 - **Sélection interactive** : Cliquez et glissez pour sélectionner les mots clés
 - **Analyses multiples** : Créez plusieurs analyses avant soumission
 - **Sauvegarde automatique** : Toutes vos analyses sont sauvegardées dans Appwrite
 - **Reprise d'analyse** : Continuez une analyse non terminée automatiquement
-- **Analyse complète** : Combine toutes vos analyses + analyse de référence de la DB
-- **Mode Complet/Rapide** : Analysez tout le poème ou des strophes aléatoires
 - **Évaluation IA** : Feedback détaillé avec score via OpenRouter
+- **Mode Complet/Rapide** : Analysez tout le poème ou des strophes aléatoires
 - **Interface responsive** : Design optimisé mobile et desktop
 - **Thème sombre/clair** : Personnalisez votre expérience
-- **Preloading** : Connexion API préchauffée pour réponses rapides
-- **Cache intelligent** : Résultats mis en cache pour éviter requêtes dupliquées
+
+### 🎨 Intégration Craft API
+- **📚 Collections API** : Gestion des poèmes via Craft Collections
+- **🔄 Synchronisation temps réel** : Les poèmes sont chargés depuis Craft
+- **📝 Analyses liées** : Récupération automatique des analyses liées à d'autres documents
+- **🎛️ Toggle Published** : Contrôle de visibilité directement depuis Craft
+- **🚀 Chargement progressif** : Affichage des poèmes au fur et à mesure
+- **✨ Interface de gestion** : Créez du contenu avec la belle UI de Craft
+- **🧹 Nettoyage automatique** : Suppression des balises Craft (`<callout>`, etc.)
 
 ## 🚀 Installation
 
@@ -162,10 +174,44 @@ Ouvrez http://localhost:5173
 
 - **Frontend**: React 19 + TypeScript + Vite
 - **Styling**: TailwindCSS + shadcn/ui
-- **Database**: Appwrite (BaaS)
+- **Content Management**: Craft Collections API 🎨
+- **Database**: Appwrite (BaaS) + Craft
 - **Auth**: Appwrite OTP Email
 - **IA**: OpenRouter (Grok-2)
 - **UI Components**: Radix UI
+
+## 🎨 Craft API Integration
+
+This project uses **Craft's Collections API** to manage poems and analyses:
+
+```typescript
+// Fetch collections
+const collections = await fetch('/api/v1/collections');
+const poemsCollection = collections.items.find(c => c.name === 'Analyse');
+
+// Get collection items with content
+const items = await fetch(`/api/v1/collections/${id}/items?maxDepth=-1`);
+
+// Progressive loading
+for (const item of items) {
+  const poem = await parsePoemFromCollectionItem(item);
+  displayPoem(poem); // Show immediately
+}
+```
+
+### Craft Collection Structure
+
+**Collection Name:** `Analyse`
+
+**Properties:**
+- `name` (Text) - Poem title
+- `author` (Text) - Poet name
+- `analyse` (Text/Link) - Literary analysis (can be text or linked document)
+- `published` (Boolean) - Visibility toggle
+
+**Content:** Full poem text in the collection item's page
+
+See [CRAFT_API_USAGE.md](./CRAFT_API_USAGE.md) for detailed setup instructions.
 
 ## 📂 Structure
 
